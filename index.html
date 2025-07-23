@@ -1241,169 +1241,189 @@
     <div id="toast-container" class="toast-container"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        // Global data storage
-        let workoutData = [];
-        let weightData = [];
-        let birthdayData = [];
+  // Global data storage
+let workoutData = [];
+let weightData = [];
+let birthdayData = [];
 
-        // Initialize the app
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeApp();
-            loadInitialData();
+// Initialize the app
+document.addEventListener('DOMContentLoaded', function() {
+    initializeApp();
+    loadInitialData();
+});
+
+function initializeApp() {
+    // Set current date
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    setupEventListeners();
+    setupTabNavigation();
+    setupModals();
+}
+
+function setupEventListeners() {
+    // Quick action buttons
+    document.getElementById('log-weight-btn').addEventListener('click', () => openModal('weight-modal'));
+    document.getElementById('log-workout-btn').addEventListener('click', () => openModal('workout-modal'));
+    document.getElementById('log-birthday-btn').addEventListener('click', () => openModal('birthday-modal'));
+
+    // Form submissions
+    document.getElementById('weight-form').addEventListener('submit', handleWeightSubmit);
+    document.getElementById('workout-form').addEventListener('submit', handleWorkoutSubmit);
+    document.getElementById('birthday-form').addEventListener('submit', handleBirthdaySubmit);
+
+    // Card clicks for details
+    document.getElementById('workout-card').addEventListener('click', () => openModal('workout-detail-modal'));
+    document.getElementById('weight-card').addEventListener('click', () => openModal('weight-detail-modal'));
+    document.getElementById('birthday-card').addEventListener('click', () => openModal('birthday-detail-modal'));
+
+    // Workout type conditional fields
+    document.getElementById('workout-type').addEventListener('change', handleWorkoutTypeChange);
+
+    // Export functionality
+    document.getElementById('export-submit').addEventListener('click', handleExport);
+    document.getElementById('export-cancel').addEventListener('click', clearExportForm);
+
+    // Data import
+    document.getElementById('import-data-btn').addEventListener('click', () => {
+        document.getElementById('csv-file-input').click();
+    });
+    document.getElementById('csv-file-input').addEventListener('change', handleCSVImport);
+
+    // Backup functionality
+    document.getElementById('backup-all-btn').addEventListener('click', backupAllData);
+    document.getElementById('restore-btn').addEventListener('click', () => {
+        document.getElementById('backup-file-input').click();
+    });
+    document.getElementById('backup-file-input').addEventListener('change', restoreFromBackup);
+
+    // Chat functionality
+    document.getElementById('chat-send').addEventListener('click', handleChatMessage);
+    document.getElementById('chat-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            handleChatMessage();
+        }
+    });
+
+    // Weight detail chart filters
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            updateWeightDetailChart(this.dataset.days);
         });
+    });
+}
 
-        function initializeApp() {
-            // Set current date
-            document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-
-            setupEventListeners();
-            setupTabNavigation();
-            setupModals();
-        }
-
-        function setupEventListeners() {
-            // Quick action buttons
-            document.getElementById('log-weight-btn').addEventListener('click', () => openModal('weight-modal'));
-            document.getElementById('log-workout-btn').addEventListener('click', () => openModal('workout-modal'));
-            document.getElementById('log-birthday-btn').addEventListener('click', () => openModal('birthday-modal'));
-
-            // Form submissions
-            document.getElementById('weight-form').addEventListener('submit', handleWeightSubmit);
-            document.getElementById('workout-form').addEventListener('submit', handleWorkoutSubmit);
-            document.getElementById('birthday-form').addEventListener('submit', handleBirthdaySubmit);
-
-            // Card clicks for details
-            document.getElementById('workout-card').addEventListener('click', () => openModal('workout-detail-modal'));
-            document.getElementById('weight-card').addEventListener('click', () => openModal('weight-detail-modal'));
-            document.getElementById('birthday-card').addEventListener('click', () => openModal('birthday-detail-modal'));
-
-            // Workout type conditional fields
-            document.getElementById('workout-type').addEventListener('change', handleWorkoutTypeChange);
-
-            // Export functionality
-            document.getElementById('export-submit').addEventListener('click', handleExport);
-            document.getElementById('export-cancel').addEventListener('click', clearExportForm);
-
-            // Data import
-            document.getElementById('import-data-btn').addEventListener('click', () => {
-                document.getElementById('csv-file-input').click();
-            });
-            document.getElementById('csv-file-input').addEventListener('change', handleCSVImport);
-
-            // Backup functionality
-            document.getElementById('backup-all-btn').addEventListener('click', backupAllData);
-            document.getElementById('restore-btn').addEventListener('click', () => {
-                document.getElementById('backup-file-input').click();
-            });
-            document.getElementById('backup-file-input').addEventListener('change', restoreFromBackup);
-
-            // Chat functionality
-            document.getElementById('chat-send').addEventListener('click', handleChatMessage);
-            document.getElementById('chat-input').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    handleChatMessage();
-                }
-            });
-
-            // Weight detail chart filters
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    updateWeightDetailChart(this.dataset.days);
-                });
-            });
-        }
-
-        function setupTabNavigation() {
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const tabName = this.dataset.tab;
-                    
-                    // Update nav buttons
-                    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-                    this.classList.add('active');
-                    
-                    // Update tab content
-                    document.querySelectorAll('.tab-content').forEach(content => {
-                        content.classList.remove('active');
-                    });
-                    document.getElementById(tabName).classList.add('active');
-                    
-                    // Load insights when switching to insights tab
-                    if (tabName === 'insights') {
-                        loadInsights();
-                    }
-                });
-            });
-        }
-
-        function setupModals() {
-            // Close button functionality
-            document.querySelectorAll('.close-btn, .btn-secondary').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const modalId = this.dataset.modal;
-                    if (modalId) {
-                        closeModal(modalId);
-                    }
-                });
-            });
-
-            // Close modal when clicking outside
-            document.querySelectorAll('.modal').forEach(modal => {
-                modal.addEventListener('click', function(e) {
-                    if (e.target === this) {
-                        closeModal(this.id);
-                    }
-                });
-            });
-        }
-
-        // Modal functions
-        function openModal(modalId) {
-            const modal = document.getElementById(modalId);
-            modal.classList.add('active');
+function setupTabNavigation() {
+    document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const tabName = this.dataset.tab;
             
-            // Set default dates for forms
-            if (modalId.includes('weight') || modalId.includes('workout') || modalId.includes('birthday')) {
-                const dateInput = modal.querySelector('input[type="date"]');
-                if (dateInput && !dateInput.value) {
-                    dateInput.value = new Date().toISOString().split('T')[0];
-                }
-            }
+            // Update nav buttons
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
             
-            // Load specific modal content
-            if (modalId === 'workout-detail-modal') {
-                loadWorkoutDetails();
-            } else if (modalId === 'weight-detail-modal') {
-                loadWeightDetails();
-            } else if (modalId === 'birthday-detail-modal') {
-                loadBirthdayDetails();
-            }
-        }
-
-        function closeModal(modalId) {
-            document.getElementById(modalId).classList.remove('active');
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
             
-            // Reset forms
-            const form = document.querySelector(`#${modalId} form`);
-            if (form) {
-                form.reset();
-                // Hide conditional fields
-                document.querySelectorAll('.conditional').forEach(field => {
-                    field.classList.remove('show');
-                });
+            // Load insights when switching to insights tab
+            if (tabName === 'insights') {
+                loadInsights();
             }
-        }
+        });
+    });
+}
 
-        // Data loading functions
-        // Replace the loadCSVData function in your JavaScript with this corrected version:
+function setupModals() {
+    // Close button functionality
+    document.querySelectorAll('.close-btn, .btn-secondary').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modalId = this.dataset.modal;
+            if (modalId) {
+                closeModal(modalId);
+            }
+        });
+    });
+
+    // Close modal when clicking outside
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal(this.id);
+            }
+        });
+    });
+}
+
+// Modal functions
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.add('active');
+    
+    // Set default dates for forms
+    if (modalId.includes('weight') || modalId.includes('workout') || modalId.includes('birthday')) {
+        const dateInput = modal.querySelector('input[type="date"]');
+        if (dateInput && !dateInput.value) {
+            dateInput.value = new Date().toISOString().split('T')[0];
+        }
+    }
+    
+    // Load specific modal content
+    if (modalId === 'workout-detail-modal') {
+        loadWorkoutDetails();
+    } else if (modalId === 'weight-detail-modal') {
+        loadWeightDetails();
+    } else if (modalId === 'birthday-detail-modal') {
+        loadBirthdayDetails();
+    }
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+    
+    // Reset forms
+    const form = document.querySelector(`#${modalId} form`);
+    if (form) {
+        form.reset();
+        // Hide conditional fields
+        document.querySelectorAll('.conditional').forEach(field => {
+            field.classList.remove('show');
+        });
+    }
+}
+
+// Data loading functions
+async function loadInitialData() {
+    showLoading(true);
+    
+    try {
+        // Try to load CSV data if files are available
+        await Promise.all([
+            loadCSVData('Clean_Weight_Log.csv', 'weight'),
+            loadCSVData('Clean_Workout_Log.csv', 'workout'),
+            loadCSVData('Clean_Birthdays.csv', 'birthday')
+        ]);
+        
+        updateDashboard();
+        showToast('Data loaded successfully!', 'success');
+    } catch (error) {
+        console.error('Error loading initial data:', error);
+        showToast('Using demo data. Upload your CSV files in Settings.', 'warning');
+        loadDemoData();
+        updateDashboard();
+    }
+    
+    showLoading(false);
+}
 
 async function loadCSVData(filename, type) {
     try {
@@ -1476,7 +1496,656 @@ async function loadCSVData(filename, type) {
     }
 }
 
-// Also update the handleCSVImport function to not use window.fs:
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            result.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    
+    result.push(current);
+    return result;
+}
+
+function loadDemoData() {
+    // Demo weight data
+    const today = new Date();
+    weightData = [
+        { date: today.toISOString().split('T')[0], weight: 180.5, bodyFat: 15.2, notes: 'Morning weigh-in' },
+        { date: new Date(today.getTime() - 86400000).toISOString().split('T')[0], weight: 181.0, bodyFat: 15.3, notes: '' },
+        { date: new Date(today.getTime() - 172800000).toISOString().split('T')[0], weight: 180.8, bodyFat: null, notes: '' }
+    ];
+    
+    // Demo workout data
+    workoutData = [
+        { date: today.toISOString().split('T')[0], type: 'run', duration: '30', distance: 3.2, hrZone: 3, notes: 'Morning run', muscleGroups: [] },
+        { date: new Date(today.getTime() - 86400000).toISOString().split('T')[0], type: 'lift', duration: '45', distance: null, hrZone: null, notes: 'Chest and arms', muscleGroups: ['chest', 'biceps'] },
+        { date: new Date(today.getTime() - 172800000).toISOString().split('T')[0], type: 'walk', duration: '25', distance: null, hrZone: 2, notes: 'Easy recovery walk', muscleGroups: [] }
+    ];
+    
+    // Demo birthday data
+    const nextWeek = new Date(today.getTime() + 604800000);
+    birthdayData = [
+        { name: 'John Doe', date: nextWeek.toISOString().split('T')[0], age: 30, notes: 'Best friend' },
+        { name: 'Jane Smith', date: new Date(today.getFullYear(), today.getMonth() + 1, 5).toISOString().split('T')[0], age: 28, notes: 'Colleague' }
+    ];
+}
+
+// Dashboard update functions
+function updateDashboard() {
+    updateWorkoutCard();
+    updateWeightCard();
+    updateBirthdayCard();
+}
+
+function updateWorkoutCard() {
+    const thisWeek = getWorkoutsThisWeek();
+    const avgWorkouts = getAverageWorkoutsPerWeek();
+    const lastWeek = getWorkoutsLastWeek();
+    
+    document.getElementById('workouts-this-week').textContent = thisWeek;
+    document.getElementById('workouts-avg').textContent = avgWorkouts.toFixed(1);
+    
+    const trend = thisWeek - lastWeek;
+    const trendElement = document.getElementById('workout-trend');
+    if (trend > 0) {
+        trendElement.textContent = `+${trend} vs last week`;
+        trendElement.className = 'trend positive';
+    } else if (trend < 0) {
+        trendElement.textContent = `${trend} vs last week`;
+        trendElement.className = 'trend negative';
+    } else {
+        trendElement.textContent = 'Same as last week';
+        trendElement.className = 'trend';
+    }
+}
+
+function updateWeightCard() {
+    if (weightData.length === 0) {
+        document.getElementById('current-weight').textContent = '--';
+        document.getElementById('weight-lost').textContent = '0';
+        document.getElementById('weight-trend').textContent = '--';
+        return;
+    }
+    
+    const sortedWeights = [...weightData].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const currentWeight = sortedWeights[0].weight;
+    const maxWeight = Math.max(...weightData.map(w => w.weight));
+    const weightLost = maxWeight - currentWeight;
+    
+    document.getElementById('current-weight').textContent = `${currentWeight} lbs`;
+    document.getElementById('weight-lost').textContent = weightLost.toFixed(1);
+    
+    // Get last week's weight for trend
+    const lastWeekWeight = getWeightFromWeeksAgo(1);
+    if (lastWeekWeight) {
+        const weekTrend = lastWeekWeight - currentWeight;
+        const trendElement = document.getElementById('weight-trend');
+        if (weekTrend > 0) {
+            trendElement.textContent = `-${weekTrend.toFixed(1)} lbs this week`;
+            trendElement.className = 'trend positive';
+        } else if (weekTrend < 0) {
+            trendElement.textContent = `+${Math.abs(weekTrend).toFixed(1)} lbs this week`;
+            trendElement.className = 'trend negative';
+        } else {
+            trendElement.textContent = 'No change this week';
+            trendElement.className = 'trend';
+        }
+    }
+}
+
+function updateBirthdayCard() {
+    const thisWeek = getBirthdaysThisWeek();
+    const thisMonth = getBirthdaysThisMonth();
+    
+    document.getElementById('birthdays-this-week').textContent = thisWeek;
+    document.getElementById('birthdays-this-month').textContent = thisMonth;
+}
+
+// Utility functions for calculations
+function getWorkoutsThisWeek() {
+    const today = new Date();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - today.getDay() + 1);
+    monday.setHours(0, 0, 0, 0);
+    
+    return workoutData.filter(workout => {
+        const workoutDate = new Date(workout.date);
+        return workoutDate >= monday && workoutDate <= today;
+    }).length;
+}
+
+function getWorkoutsLastWeek() {
+    const today = new Date();
+    const lastMonday = new Date(today);
+    lastMonday.setDate(today.getDate() - today.getDay() - 6);
+    lastMonday.setHours(0, 0, 0, 0);
+    
+    const lastSunday = new Date(lastMonday);
+    lastSunday.setDate(lastMonday.getDate() + 6);
+    lastSunday.setHours(23, 59, 59, 999);
+    
+    return workoutData.filter(workout => {
+        const workoutDate = new Date(workout.date);
+        return workoutDate >= lastMonday && workoutDate <= lastSunday;
+    }).length;
+}
+
+function getAverageWorkoutsPerWeek() {
+    if (workoutData.length === 0) return 0;
+    
+    const dates = workoutData.map(w => new Date(w.date));
+    const minDate = new Date(Math.min(...dates));
+    const maxDate = new Date(Math.max(...dates));
+    const weeks = Math.ceil((maxDate - minDate) / (7 * 24 * 60 * 60 * 1000)) || 1;
+    
+    return workoutData.length / weeks;
+}
+
+function getWeightFromWeeksAgo(weeksAgo) {
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() - (weeksAgo * 7));
+    
+    // Find the closest weight entry to that date
+    let closest = null;
+    let minDiff = Infinity;
+    
+    weightData.forEach(weight => {
+        const weightDate = new Date(weight.date);
+        const diff = Math.abs(weightDate - targetDate);
+        if (diff < minDiff) {
+            minDiff = diff;
+            closest = weight;
+        }
+    });
+    
+    return closest ? closest.weight : null;
+}
+
+function getBirthdaysThisWeek() {
+    const today = new Date();
+    const oneWeekFromNow = new Date(today);
+    oneWeekFromNow.setDate(today.getDate() + 7);
+    
+    return birthdayData.filter(birthday => {
+        const birthDate = new Date(birthday.date);
+        const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+        
+        return thisYearBirthday >= today && thisYearBirthday <= oneWeekFromNow;
+    }).length;
+}
+
+function getBirthdaysThisMonth() {
+    const today = new Date();
+    
+    return birthdayData.filter(birthday => {
+        const birthDate = new Date(birthday.date);
+        return birthDate.getMonth() === today.getMonth();
+    }).length;
+}
+
+// Form handling functions
+function handleWorkoutTypeChange(e) {
+    const type = e.target.value;
+    
+    // Hide all conditional fields first
+    document.querySelectorAll('.conditional').forEach(field => {
+        field.classList.remove('show');
+        // Reset required attributes
+        const inputs = field.querySelectorAll('input, select');
+        inputs.forEach(input => input.required = false);
+    });
+    
+    // Show relevant fields based on workout type
+    switch (type) {
+        case 'walk':
+            document.getElementById('duration-group').classList.add('show');
+            document.getElementById('hr-group').classList.add('show');
+            // Make duration and HR required for walking
+            document.getElementById('workout-duration').required = true;
+            document.getElementById('workout-hr').required = true;
+            break;
+        case 'run':
+            document.getElementById('distance-group').classList.add('show');
+            // Make distance required for running
+            document.getElementById('workout-distance').required = true;
+            break;
+        case 'lift':
+            document.getElementById('muscle-group').classList.add('show');
+            break;
+        case 'tennis':
+        case 'other':
+            // No additional required fields
+            break;
+    }
+}
+
+function handleWeightSubmit(e) {
+    e.preventDefault();
+    
+    const weightEntry = {
+        date: document.getElementById('weight-date').value,
+        weight: parseFloat(document.getElementById('weight-value').value),
+        bodyFat: parseFloat(document.getElementById('body-fat').value) || null,
+        notes: document.getElementById('weight-notes').value
+    };
+    
+    weightData.push(weightEntry);
+    weightData.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    updateDashboard();
+    closeModal('weight-modal');
+    showToast('Weight entry saved!', 'success');
+}
+
+function handleWorkoutSubmit(e) {
+    e.preventDefault();
+    
+    const muscleGroups = Array.from(document.querySelectorAll('#muscle-group input[type="checkbox"]:checked'))
+        .map(cb => cb.value);
+    
+    const workoutEntry = {
+        date: document.getElementById('workout-date').value,
+        type: document.getElementById('workout-type').value,
+        duration: document.getElementById('workout-duration').value,
+        distance: parseFloat(document.getElementById('workout-distance').value) || null,
+        hrZone: parseInt(document.getElementById('workout-hr').value) || null,
+        notes: document.getElementById('workout-notes').value,
+        muscleGroups: muscleGroups
+    };
+    
+    workoutData.push(workoutEntry);
+    workoutData.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    updateDashboard();
+    closeModal('workout-modal');
+    showToast('Workout logged!', 'success');
+}
+
+function handleBirthdaySubmit(e) {
+    e.preventDefault();
+    
+    const birthdayEntry = {
+        name: document.getElementById('birthday-name').value,
+        date: document.getElementById('birthday-date').value,
+        age: parseInt(document.getElementById('birthday-age').value) || null,
+        notes: document.getElementById('birthday-notes').value
+    };
+    
+    birthdayData.push(birthdayEntry);
+    birthdayData.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    updateDashboard();
+    closeModal('birthday-modal');
+    showToast('Birthday added!', 'success');
+}
+
+// Detail modal functions
+function loadWorkoutDetails() {
+    const recentWorkouts = workoutData.slice(0, 14);
+    const workoutList = document.getElementById('workout-list');
+    
+    if (recentWorkouts.length === 0) {
+        workoutList.innerHTML = '<p>No workouts logged yet.</p>';
+        return;
+    }
+    
+    workoutList.innerHTML = recentWorkouts.map(workout => `
+        <div class="workout-item">
+            <div class="workout-header">
+                <span class="workout-type">${workout.type.toUpperCase()}</span>
+                <span class="workout-date">${new Date(workout.date).toLocaleDateString()}</span>
+            </div>
+            <div class="workout-details">
+                ${workout.duration ? `<span>Duration: ${workout.duration} min</span>` : ''}
+                ${workout.distance ? `<span>Distance: ${workout.distance} mi</span>` : ''}
+                ${workout.hrZone ? `<span>HR Zone: ${workout.hrZone}</span>` : ''}
+                ${workout.muscleGroups.length ? `<span>Muscles: ${workout.muscleGroups.join(', ')}</span>` : ''}
+            </div>
+            ${workout.notes ? `<div class="workout-notes">${workout.notes}</div>` : ''}
+        </div>
+    `).join('');
+}
+
+function loadWeightDetails() {
+    updateWeightDetailChart('7');
+}
+
+function loadBirthdayDetails() {
+    const today = new Date();
+    const thisMonth = birthdayData.filter(birthday => {
+        const birthDate = new Date(birthday.date);
+        return birthDate.getMonth() === today.getMonth();
+    });
+    
+    const birthdayList = document.getElementById('birthday-list');
+    
+    if (thisMonth.length === 0) {
+        birthdayList.innerHTML = '<p>No birthdays this month.</p>';
+        return;
+    }
+    
+    birthdayList.innerHTML = thisMonth.map(birthday => `
+        <div class="birthday-item">
+            <h4>${birthday.name}</h4>
+            <p>Date: ${new Date(birthday.date).toLocaleDateString()}</p>
+            ${birthday.age ? `<p>Age: ${birthday.age}</p>` : ''}
+            ${birthday.notes ? `<p>Notes: ${birthday.notes}</p>` : ''}
+        </div>
+    `).join('');
+}
+
+// Chart functions
+function updateWeightDetailChart(days) {
+    const ctx = document.getElementById('weight-detail-chart').getContext('2d');
+    
+    let filteredData = [...weightData];
+    
+    if (days !== 'all') {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
+        filteredData = weightData.filter(w => new Date(w.date) >= cutoffDate);
+    }
+    
+    filteredData.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    if (window.weightDetailChart) {
+        window.weightDetailChart.destroy();
+    }
+    
+    if (filteredData.length === 0) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillText('No weight data available', 150, 150);
+        return;
+    }
+    
+    window.weightDetailChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: filteredData.map(w => new Date(w.date).toLocaleDateString()),
+            datasets: [{
+                label: 'Weight (lbs)',
+                data: filteredData.map(w => w.weight),
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+}
+
+function loadInsights() {
+    loadWorkoutInsights();
+    loadWeightInsights();
+}
+
+function loadWorkoutInsights() {
+    const ctx = document.getElementById('workout-chart').getContext('2d');
+    
+    // Get last 8 weeks of workout data
+    const weeklyData = getWeeklyWorkoutData(8);
+    
+    if (window.workoutChart) {
+        window.workoutChart.destroy();
+    }
+    
+    window.workoutChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: weeklyData.map(w => w.week),
+            datasets: [{
+                label: 'Workouts per Week',
+                data: weeklyData.map(w => w.count),
+                backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                borderColor: '#667eea',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+    
+    // Update insights text
+    const avgWorkouts = weeklyData.reduce((sum, w) => sum + w.count, 0) / weeklyData.length;
+    const thisWeek = weeklyData[weeklyData.length - 1]?.count || 0;
+    const lastWeek = weeklyData[weeklyData.length - 2]?.count || 0;
+    
+    document.getElementById('workout-insights').innerHTML = `
+        <p>Average: ${avgWorkouts.toFixed(1)} workouts per week</p>
+        <p>This week vs last: ${thisWeek - lastWeek > 0 ? '+' : ''}${thisWeek - lastWeek}</p>
+        <p>Most common workout: ${getMostCommonWorkoutType()}</p>
+    `;
+}
+
+function loadWeightInsights() {
+    const ctx = document.getElementById('weight-chart').getContext('2d');
+    
+    const recentWeights = weightData.slice(0, 30).reverse();
+    
+    if (window.weightChart) {
+        window.weightChart.destroy();
+    }
+    
+    if (recentWeights.length === 0) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.fillText('No weight data available', 150, 100);
+        document.getElementById('weight-insights').innerHTML = '<p>No weight data to analyze yet.</p>';
+        return;
+    }
+    
+    window.weightChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: recentWeights.map(w => new Date(w.date).toLocaleDateString()),
+            datasets: [{
+                label: 'Weight (lbs)',
+                data: recentWeights.map(w => w.weight),
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.1,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
+        }
+    });
+    
+    // Update insights text
+    if (recentWeights.length > 1) {
+        const startWeight = recentWeights[0].weight;
+        const endWeight = recentWeights[recentWeights.length - 1].weight;
+        const totalChange = endWeight - startWeight;
+        const avgChange = totalChange / recentWeights.length;
+        
+        document.getElementById('weight-insights').innerHTML = `
+            <p>Total change: ${totalChange > 0 ? '+' : ''}${totalChange.toFixed(1)} lbs</p>
+            <p>Average change per entry: ${avgChange > 0 ? '+' : ''}${avgChange.toFixed(2)} lbs</p>
+            <p>Current trend: ${totalChange < 0 ? 'Losing' : totalChange > 0 ? 'Gaining' : 'Stable'}</p>
+        `;
+    }
+}
+
+function getWeeklyWorkoutData(weeks) {
+    const weeklyData = [];
+    const today = new Date();
+    
+    for (let i = weeks - 1; i >= 0; i--) {
+        const weekStart = new Date(today);
+        weekStart.setDate(today.getDate() - (today.getDay() + (i * 7) - 1));
+        weekStart.setHours(0, 0, 0, 0);
+        
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekStart.getDate() + 6);
+        weekEnd.setHours(23, 59, 59, 999);
+        
+        const workoutsInWeek = workoutData.filter(workout => {
+            const workoutDate = new Date(workout.date);
+            return workoutDate >= weekStart && workoutDate <= weekEnd;
+        }).length;
+        
+        weeklyData.push({
+            week: `${weekStart.getMonth() + 1}/${weekStart.getDate()}`,
+            count: workoutsInWeek
+        });
+    }
+    
+    return weeklyData;
+}
+
+function getMostCommonWorkoutType() {
+    if (workoutData.length === 0) return 'None';
+    
+    const typeCounts = {};
+    workoutData.forEach(workout => {
+        typeCounts[workout.type] = (typeCounts[workout.type] || 0) + 1;
+    });
+    
+    let mostCommon = '';
+    let maxCount = 0;
+    for (const [type, count] of Object.entries(typeCounts)) {
+        if (count > maxCount) {
+            maxCount = count;
+            mostCommon = type;
+        }
+    }
+    
+    return mostCommon.charAt(0).toUpperCase() + mostCommon.slice(1);
+}
+
+// Export/Import functions
+function handleExport() {
+    const exportType = document.getElementById('export-type').value;
+    const exportFormat = document.getElementById('export-format').value;
+    
+    if (!exportType || !exportFormat) {
+        showToast('Please select both data type and format', 'warning');
+        return;
+    }
+    
+    let data, filename;
+    
+    switch (exportType) {
+        case 'workouts':
+            data = workoutData;
+            filename = `workouts_${new Date().toISOString().split('T')[0]}`;
+            break;
+        case 'weight':
+            data = weightData;
+            filename = `weight_${new Date().toISOString().split('T')[0]}`;
+            break;
+        case 'birthdays':
+            data = birthdayData;
+            filename = `birthdays_${new Date().toISOString().split('T')[0]}`;
+            break;
+        case 'all':
+            data = { workouts: workoutData, weight: weightData, birthdays: birthdayData };
+            filename = `fitness_data_${new Date().toISOString().split('T')[0]}`;
+            break;
+    }
+    
+    if (exportFormat === 'csv') {
+        exportToCSV(data, filename);
+    } else {
+        exportToJSON(data, filename);
+    }
+    
+    showToast('Data exported successfully!', 'success');
+}
+
+function clearExportForm() {
+    document.getElementById('export-type').value = '';
+    document.getElementById('export-format').value = '';
+}
+
+function exportToCSV(data, filename) {
+    let csvContent = '';
+    
+    if (Array.isArray(data)) {
+        if (data.length === 0) {
+            showToast('No data to export', 'warning');
+            return;
+        }
+        
+        // Get headers from first object
+        const headers = Object.keys(data[0]);
+        csvContent = headers.join(',') + '\n';
+        
+        // Add data rows
+        data.forEach(row => {
+            const values = headers.map(header => {
+                let value = row[header];
+                if (Array.isArray(value)) {
+                    value = value.join(';');
+                }
+                if (typeof value === 'string' && value.includes(',')) {
+                    value = `"${value}"`;
+                }
+                return value || '';
+            });
+            csvContent += values.join(',') + '\n';
+        });
+    } else {
+        // Handle 'all' export case
+        csvContent = 'Data Type,Content\n';
+        for (const [key, value] of Object.entries(data)) {
+            csvContent += `${key},"${JSON.stringify(value).replace(/"/g, '""')}"\n`;
+        }
+    }
+    
+    downloadFile(csvContent, `${filename}.csv`, 'text/csv');
+}
+
+function exportToJSON(data, filename) {
+    const jsonContent = JSON.stringify(data, null, 2);
+    downloadFile(jsonContent, `${filename}.json`, 'application/json');
+}
+
+function downloadFile(content, filename, contentType) {
+    const blob = new Blob([content], { type: contentType });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
 async function handleCSVImport(e) {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -1510,974 +2179,262 @@ async function handleCSVImport(e) {
     e.target.value = ''; // Reset file input
 }
 
-        // Dashboard update functions
-        function updateDashboard() {
-            updateWorkoutCard();
-            updateWeightCard();
-            updateBirthdayCard();
-        }
+function readFileContent(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.onerror = e => reject(e);
+        reader.readAsText(file);
+    });
+}
 
-        function updateWorkoutCard() {
-            const thisWeek = getWorkoutsThisWeek();
-            const avgWorkouts = getAverageWorkoutsPerWeek();
-            const lastWeek = getWorkoutsLastWeek();
+async function loadCSVFromContent(content, type) {
+    const lines = content.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+    
+    const data = lines.slice(1).map(line => {
+        const values = parseCSVLine(line);
+        const row = {};
+        headers.forEach((header, index) => {
+            row[header] = values[index]?.trim().replace(/"/g, '') || '';
+        });
+        return row;
+    });
+    
+    switch (type) {
+        case 'weight':
+            const newWeightData = data.map(row => ({
+                date: row.date,
+                weight: parseFloat(row.weight) || 0,
+                bodyFat: parseFloat(row.body_fat || row.bodyfat) || null,
+                notes: row.notes || ''
+            })).filter(row => row.weight > 0);
             
-            document.getElementById('workouts-this-week').textContent = thisWeek;
-            document.getElementById('workouts-avg').textContent = avgWorkouts.toFixed(1);
-            
-            const trend = thisWeek - lastWeek;
-            const trendElement = document.getElementById('workout-trend');
-            if (trend > 0) {
-                trendElement.textContent = `+${trend} vs last week`;
-                trendElement.className = 'trend positive';
-            } else if (trend < 0) {
-                trendElement.textContent = `${trend} vs last week`;
-                trendElement.className = 'trend negative';
-            } else {
-                trendElement.textContent = 'Same as last week';
-                trendElement.className = 'trend';
-            }
-        }
-
-        function updateWeightCard() {
-            if (weightData.length === 0) {
-                document.getElementById('current-weight').textContent = '--';
-                document.getElementById('weight-lost').textContent = '0';
-                document.getElementById('weight-trend').textContent = '--';
-                return;
-            }
-            
-            const sortedWeights = [...weightData].sort((a, b) => new Date(b.date) - new Date(a.date));
-            const currentWeight = sortedWeights[0].weight;
-            const maxWeight = Math.max(...weightData.map(w => w.weight));
-            const weightLost = maxWeight - currentWeight;
-            
-            document.getElementById('current-weight').textContent = `${currentWeight} lbs`;
-            document.getElementById('weight-lost').textContent = weightLost.toFixed(1);
-            
-            // Get last week's weight for trend
-            const lastWeekWeight = getWeightFromWeeksAgo(1);
-            if (lastWeekWeight) {
-                const weekTrend = lastWeekWeight - currentWeight;
-                const trendElement = document.getElementById('weight-trend');
-                if (weekTrend > 0) {
-                    trendElement.textContent = `-${weekTrend.toFixed(1)} lbs this week`;
-                    trendElement.className = 'trend positive';
-                } else if (weekTrend < 0) {
-                    trendElement.textContent = `+${Math.abs(weekTrend).toFixed(1)} lbs this week`;
-                    trendElement.className = 'trend negative';
-                } else {
-                    trendElement.textContent = 'No change this week';
-                    trendElement.className = 'trend';
-                }
-            }
-        }
-
-        function updateBirthdayCard() {
-            const thisWeek = getBirthdaysThisWeek();
-            const thisMonth = getBirthdaysThisMonth();
-            
-            document.getElementById('birthdays-this-week').textContent = thisWeek;
-            document.getElementById('birthdays-this-month').textContent = thisMonth;
-        }
-
-        // Utility functions for calculations
-        function getWorkoutsThisWeek() {
-            const today = new Date();
-            const monday = new Date(today);
-            monday.setDate(today.getDate() - today.getDay() + 1);
-            monday.setHours(0, 0, 0, 0);
-            
-            return workoutData.filter(workout => {
-                const workoutDate = new Date(workout.date);
-                return workoutDate >= monday && workoutDate <= today;
-            }).length;
-        }
-
-        function getWorkoutsLastWeek() {
-            const today = new Date();
-            const lastMonday = new Date(today);
-            lastMonday.setDate(today.getDate() - today.getDay() - 6);
-            lastMonday.setHours(0, 0, 0, 0);
-            
-            const lastSunday = new Date(lastMonday);
-            lastSunday.setDate(lastMonday.getDate() + 6);
-            lastSunday.setHours(23, 59, 59, 999);
-            
-            return workoutData.filter(workout => {
-                const workoutDate = new Date(workout.date);
-                return workoutDate >= lastMonday && workoutDate <= lastSunday;
-            }).length;
-        }
-
-        function getAverageWorkoutsPerWeek() {
-            if (workoutData.length === 0) return 0;
-            
-            const dates = workoutData.map(w => new Date(w.date));
-            const minDate = new Date(Math.min(...dates));
-            const maxDate = new Date(Math.max(...dates));
-            const weeks = Math.ceil((maxDate - minDate) / (7 * 24 * 60 * 60 * 1000)) || 1;
-            
-            return workoutData.length / weeks;
-        }
-
-        function getWeightFromWeeksAgo(weeksAgo) {
-            const targetDate = new Date();
-            targetDate.setDate(targetDate.getDate() - (weeksAgo * 7));
-            
-            // Find the closest weight entry to that date
-            let closest = null;
-            let minDiff = Infinity;
-            
-            weightData.forEach(weight => {
-                const weightDate = new Date(weight.date);
-                const diff = Math.abs(weightDate - targetDate);
-                if (diff < minDiff) {
-                    minDiff = diff;
-                    closest = weight;
+            // Merge with existing data, avoiding duplicates
+            newWeightData.forEach(newEntry => {
+                const exists = weightData.some(existing => 
+                    existing.date === newEntry.date && existing.weight === newEntry.weight
+                );
+                if (!exists) {
+                    weightData.push(newEntry);
                 }
             });
-            
-            return closest ? closest.weight : null;
-        }
-
-        function getBirthdaysThisWeek() {
-            const today = new Date();
-            const oneWeekFromNow = new Date(today);
-            oneWeekFromNow.setDate(today.getDate() + 7);
-            
-            return birthdayData.filter(birthday => {
-                const birthDate = new Date(birthday.date);
-                const thisYearBirthday = new Date(today.getFullYear(), birthDate.getMonth(), birthDate.getDate());
-                
-                return thisYearBirthday >= today && thisYearBirthday <= oneWeekFromNow;
-            }).length;
-        }
-
-        function getBirthdaysThisMonth() {
-            const today = new Date();
-            
-            return birthdayData.filter(birthday => {
-                const birthDate = new Date(birthday.date);
-                return birthDate.getMonth() === today.getMonth();
-            }).length;
-        }
-
-        // Form handling functions
-        function handleWorkoutTypeChange(e) {
-            const type = e.target.value;
-            
-            // Hide all conditional fields first
-            document.querySelectorAll('.conditional').forEach(field => {
-                field.classList.remove('show');
-                // Reset required attributes
-                const inputs = field.querySelectorAll('input, select');
-                inputs.forEach(input => input.required = false);
-            });
-            
-            // Show relevant fields based on workout type
-            switch (type) {
-                case 'walk':
-                    document.getElementById('duration-group').classList.add('show');
-                    document.getElementById('hr-group').classList.add('show');
-                    // Make duration and HR required for walking
-                    document.getElementById('workout-duration').required = true;
-                    document.getElementById('workout-hr').required = true;
-                    break;
-                case 'run':
-                    document.getElementById('distance-group').classList.add('show');
-                    // Make distance required for running
-                    document.getElementById('workout-distance').required = true;
-                    break;
-                case 'lift':
-                    document.getElementById('muscle-group').classList.add('show');
-                    break;
-                case 'tennis':
-                case 'other':
-                    // No additional required fields
-                    break;
-            }
-        }
-
-        function handleWeightSubmit(e) {
-            e.preventDefault();
-            
-            const weightEntry = {
-                date: document.getElementById('weight-date').value,
-                weight: parseFloat(document.getElementById('weight-value').value),
-                bodyFat: parseFloat(document.getElementById('body-fat').value) || null,
-                notes: document.getElementById('weight-notes').value
-            };
-            
-            weightData.push(weightEntry);
             weightData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            break;
             
-            updateDashboard();
-            closeModal('weight-modal');
-            showToast('Weight entry saved!', 'success');
-        }
-
-        function handleWorkoutSubmit(e) {
-            e.preventDefault();
+        case 'workout':
+            const newWorkoutData = data.map(row => ({
+                date: row.date,
+                type: row.type,
+                duration: row.duration,
+                distance: parseFloat(row.distance) || null,
+                hrZone: parseFloat(row['hr zone'] || row.hrzone || row.hr_zone) || null,
+                notes: row.notes || '',
+                muscleGroups: row.muscle_groups ? row.muscle_groups.split(';') : []
+            })).filter(row => row.type);
             
-            const muscleGroups = Array.from(document.querySelectorAll('#muscle-group input[type="checkbox"]:checked'))
-                .map(cb => cb.value);
-            
-            const workoutEntry = {
-                date: document.getElementById('workout-date').value,
-                type: document.getElementById('workout-type').value,
-                duration: document.getElementById('workout-duration').value,
-                distance: parseFloat(document.getElementById('workout-distance').value) || null,
-                hrZone: parseInt(document.getElementById('workout-hr').value) || null,
-                notes: document.getElementById('workout-notes').value,
-                muscleGroups: muscleGroups
-            };
-            
-            workoutData.push(workoutEntry);
+            newWorkoutData.forEach(newEntry => {
+                const exists = workoutData.some(existing => 
+                    existing.date === newEntry.date && 
+                    existing.type === newEntry.type && 
+                    existing.duration === newEntry.duration
+                );
+                if (!exists) {
+                    workoutData.push(newEntry);
+                }
+            });
             workoutData.sort((a, b) => new Date(b.date) - new Date(a.date));
+            break;
             
-            updateDashboard();
-            closeModal('workout-modal');
-            showToast('Workout logged!', 'success');
-        }
-
-        function handleBirthdaySubmit(e) {
-            e.preventDefault();
+        case 'birthday':
+            const newBirthdayData = data.map(row => ({
+                name: row.name,
+                date: row.date,
+                age: parseFloat(row.age) || null,
+                notes: row.notes || ''
+            })).filter(row => row.name);
             
-            const birthdayEntry = {
-                name: document.getElementById('birthday-name').value,
-                date: document.getElementById('birthday-date').value,
-                age: parseInt(document.getElementById('birthday-age').value) || null,
-                notes: document.getElementById('birthday-notes').value
-            };
-            
-            birthdayData.push(birthdayEntry);
+            newBirthdayData.forEach(newEntry => {
+                const exists = birthdayData.some(existing => 
+                    existing.name === newEntry.name && existing.date === newEntry.date
+                );
+                if (!exists) {
+                    birthdayData.push(newEntry);
+                }
+            });
             birthdayData.sort((a, b) => new Date(a.date) - new Date(b.date));
-            
-            updateDashboard();
-            closeModal('birthday-modal');
-            showToast('Birthday added!', 'success');
-        }
-
-        // Detail modal functions
-        function loadWorkoutDetails() {
-            const recentWorkouts = workoutData.slice(0, 14);
-            const workoutList = document.getElementById('workout-list');
-            
-            if (recentWorkouts.length === 0) {
-                workoutList.innerHTML = '<p>No workouts logged yet.</p>';
-                return;
-            }
-            
-            workoutList.innerHTML = recentWorkouts.map(workout => `
-                <div class="workout-item">
-                    <div class="workout-header">
-                        <span class="workout-type">${workout.type.toUpperCase()}</span>
-                        <span class="workout-date">${new Date(workout.date).toLocaleDateString()}</span>
-                    </div>
-                    <div class="workout-details">
-                        ${workout.duration ? `<span>Duration: ${workout.duration} min</span>` : ''}
-                        ${workout.distance ? `<span>Distance: ${workout.distance} mi</span>` : ''}
-                        ${workout.hrZone ? `<span>HR Zone: ${workout.hrZone}</span>` : ''}
-                        ${workout.muscleGroups.length ? `<span>Muscles: ${workout.muscleGroups.join(', ')}</span>` : ''}
-                    </div>
-                    ${workout.notes ? `<div class="workout-notes">${workout.notes}</div>` : ''}
-                </div>
-            `).join('');
-        }
-
-        function loadWeightDetails() {
-            updateWeightDetailChart('7');
-        }
-
-        function loadBirthdayDetails() {
-            const today = new Date();
-            const thisMonth = birthdayData.filter(birthday => {
-                const birthDate = new Date(birthday.date);
-                return birthDate.getMonth() === today.getMonth();
-            });
-            
-            const birthdayList = document.getElementById('birthday-list');
-            
-            if (thisMonth.length === 0) {
-                birthdayList.innerHTML = '<p>No birthdays this month.</p>';
-                return;
-            }
-            
-            birthdayList.innerHTML = thisMonth.map(birthday => `
-                <div class="birthday-item">
-                    <h4>${birthday.name}</h4>
-                    <p>Date: ${new Date(birthday.date).toLocaleDateString()}</p>
-                    ${birthday.age ? `<p>Age: ${birthday.age}</p>` : ''}
-                    ${birthday.notes ? `<p>Notes: ${birthday.notes}</p>` : ''}
-                </div>
-            `).join('');
-        }
-
-        // Chart functions
-        function updateWeightDetailChart(days) {
-            const ctx = document.getElementById('weight-detail-chart').getContext('2d');
-            
-            let filteredData = [...weightData];
-            
-            if (days !== 'all') {
-                const cutoffDate = new Date();
-                cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
-                filteredData = weightData.filter(w => new Date(w.date) >= cutoffDate);
-            }
-            
-            filteredData.sort((a, b) => new Date(a.date) - new Date(b.date));
-            
-            if (window.weightDetailChart) {
-                window.weightDetailChart.destroy();
-            }
-            
-            if (filteredData.length === 0) {
-                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-                ctx.fillText('No weight data available', 150, 150);
-                return;
-            }
-            
-            window.weightDetailChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: filteredData.map(w => new Date(w.date).toLocaleDateString()),
-                    datasets: [{
-                        label: 'Weight (lbs)',
-                        data: filteredData.map(w => w.weight),
-                        borderColor: '#667eea',
-                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                        tension: 0.1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: false
-                        }
-                    }
-                }
-            });
-        }
-
-        function loadInsights() {
-            loadWorkoutInsights();
-            loadWeightInsights();
-        }
-
-        function loadWorkoutInsights() {
-            const ctx = document.getElementById('workout-chart').getContext('2d');
-            
-            // Get last 8 weeks of workout data
-            const weeklyData = getWeeklyWorkoutData(8);
-            
-            if (window.workoutChart) {
-                window.workoutChart.destroy();
-            }
-            
-            window.workoutChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: weeklyData.map(w => w.week),
-                    datasets: [{
-                        label: 'Workouts per Week',
-                        data: weeklyData.map(w => w.count),
-                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
-                        borderColor: '#667eea',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                stepSize: 1
-                            }
-                        }
-                    }
-                }
-            });
-            
-            // Update insights text
-            const avgWorkouts = weeklyData.reduce((sum, w) => sum + w.count, 0) / weeklyData.length;
-            const thisWeek = weeklyData[weeklyData.length - 1]?.count || 0;
-            const lastWeek = weeklyData[weeklyData.length - 2]?.count || 0;
-            
-            document.getElementById('workout-insights').innerHTML = `
-                <p>Average: ${avgWorkouts.toFixed(1)} workouts per week</p>
-                <p>This week vs last: ${thisWeek - lastWeek > 0 ? '+' : ''}${thisWeek - lastWeek}</p>
-                <p>Most common workout: ${getMostCommonWorkoutType()}</p>
-            `;
-        }
-
-        function loadWeightInsights() {
-            const ctx = document.getElementById('weight-chart').getContext('2d');
-            
-            const recentWeights = weightData.slice(0, 30).reverse();
-            
-            if (window.weightChart) {
-                window.weightChart.destroy();
-            }
-            
-            if (recentWeights.length === 0) {
-                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-                ctx.fillText('No weight data available', 150, 100);
-                document.getElementById('weight-insights').innerHTML = '<p>No weight data to analyze yet.</p>';
-                return;
-            }
-            
-            window.weightChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: recentWeights.map(w => new Date(w.date).toLocaleDateString()),
-                    datasets: [{
-                        label: 'Weight (lbs)',
-                        data: recentWeights.map(w => w.weight),
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.1,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: false
-                        }
-                    }
-                }
-            });
-            
-            // Update insights text
-            if (recentWeights.length > 1) {
-                const startWeight = recentWeights[0].weight;
-                const endWeight = recentWeights[recentWeights.length - 1].weight;
-                const totalChange = endWeight - startWeight;
-                const avgChange = totalChange / recentWeights.length;
-                
-                document.getElementById('weight-insights').innerHTML = `
-                    <p>Total change: ${totalChange > 0 ? '+' : ''}${totalChange.toFixed(1)} lbs</p>
-                    <p>Average change per entry: ${avgChange > 0 ? '+' : ''}${avgChange.toFixed(2)} lbs</p>
-                    <p>Current trend: ${totalChange < 0 ? 'Losing' : totalChange > 0 ? 'Gaining' : 'Stable'}</p>
-                `;
-            }
-        }
-
-        function getWeeklyWorkoutData(weeks) {
-            const weeklyData = [];
-            const today = new Date();
-            
-            for (let i = weeks - 1; i >= 0; i--) {
-                const weekStart = new Date(today);
-                weekStart.setDate(today.getDate() - (today.getDay() + (i * 7) - 1));
-                weekStart.setHours(0, 0, 0, 0);
-                
-                const weekEnd = new Date(weekStart);
-                weekEnd.setDate(weekStart.getDate() + 6);
-                weekEnd.setHours(23, 59, 59, 999);
-                
-                const workoutsInWeek = workoutData.filter(workout => {
-                    const workoutDate = new Date(workout.date);
-                    return workoutDate >= weekStart && workoutDate <= weekEnd;
-                }).length;
-                
-                weeklyData.push({
-                    week: `${weekStart.getMonth() + 1}/${weekStart.getDate()}`,
-                    count: workoutsInWeek
-                });
-            }
-            
-            return weeklyData;
-        }
-
-        function getMostCommonWorkoutType() {
-            if (workoutData.length === 0) return 'None';
-            
-            const typeCounts = {};
-            workoutData.forEach(workout => {
-                typeCounts[workout.type] = (typeCounts[workout.type] || 0) + 1;
-            });
-            
-            let mostCommon = '';
-            let maxCount = 0;
-            for (const [type, count] of Object.entries(typeCounts)) {
-                if (count > maxCount) {
-                    maxCount = count;
-                    mostCommon = type;
-                }
-            }
-            
-            return mostCommon.charAt(0).toUpperCase() + mostCommon.slice(1);
-        }
-
-        // Export/Import functions
-        function handleExport() {
-            const exportType = document.getElementById('export-type').value;
-            const exportFormat = document.getElementById('export-format').value;
-            
-            if (!exportType || !exportFormat) {
-                showToast('Please select both data type and format', 'warning');
-                return;
-            }
-            
-            let data, filename;
-            
-            switch (exportType) {
-                case 'workouts':
-                    data = workoutData;
-                    filename = `workouts_${new Date().toISOString().split('T')[0]}`;
-                    break;
-                case 'weight':
-                    data = weightData;
-                    filename = `weight_${new Date().toISOString().split('T')[0]}`;
-                    break;
-                case 'birthdays':
-                    data = birthdayData;
-                    filename = `birthdays_${new Date().toISOString().split('T')[0]}`;
-                    break;
-                case 'all':
-                    data = { workouts: workoutData, weight: weightData, birthdays: birthdayData };
-                    filename = `fitness_data_${new Date().toISOString().split('T')[0]}`;
-                    break;
-            }
-            
-            if (exportFormat === 'csv') {
-                exportToCSV(data, filename);
-            } else {
-                exportToJSON(data, filename);
-            }
-            
-            showToast('Data exported successfully!', 'success');
-        }
-
-        function clearExportForm() {
-            document.getElementById('export-type').value = '';
-            document.getElementById('export-format').value = '';
-        }
-
-        function exportToCSV(data, filename) {
-            let csvContent = '';
-            
-            if (Array.isArray(data)) {
-                if (data.length === 0) {
-                    showToast('No data to export', 'warning');
-                    return;
-                }
-                
-                // Get headers from first object
-                const headers = Object.keys(data[0]);
-                csvContent = headers.join(',') + '\n';
-                
-                // Add data rows
-                data.forEach(row => {
-                    const values = headers.map(header => {
-                        let value = row[header];
-                        if (Array.isArray(value)) {
-                            value = value.join(';');
-                        }
-                        if (typeof value === 'string' && value.includes(',')) {
-                            value = `"${value}"`;
-                        }
-                        return value || '';
-                    });
-                    csvContent += values.join(',') + '\n';
-                });
-            } else {
-                // Handle 'all' export case
-                csvContent = 'Data Type,Content\n';
-                for (const [key, value] of Object.entries(data)) {
-                    csvContent += `${key},"${JSON.stringify(value).replace(/"/g, '""')}"\n`;
-                }
-            }
-            
-            downloadFile(csvContent, `${filename}.csv`, 'text/csv');
-        }
-
-        function exportToJSON(data, filename) {
-            const jsonContent = JSON.stringify(data, null, 2);
-            downloadFile(jsonContent, `${filename}.json`, 'application/json');
-        }
-
-        function downloadFile(content, filename, contentType) {
-            const blob = new Blob([content], { type: contentType });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
-        }
-
-        // Replace the loadCSVData function in your JavaScript with this corrected version:
-
-async function loadCSVData(filename, type) {
-    try {
-        console.log('Attempting to load:', filename);
-        
-        // Use fetch to load CSV files from the same directory
-        const response = await fetch(filename);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const fileContent = await response.text();
-        console.log('File loaded successfully:', filename);
-        console.log('Content preview:', fileContent.substring(0, 200));
-        
-        const lines = fileContent.trim().split('\n');
-        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
-        
-        console.log('Headers found:', headers);
-        console.log('Number of data rows:', lines.length - 1);
-        
-        const data = lines.slice(1).map(line => {
-            const values = parseCSVLine(line);
-            const row = {};
-            headers.forEach((header, index) => {
-                row[header] = values[index]?.trim().replace(/"/g, '') || '';
-            });
-            return row;
-        });
-        
-        switch (type) {
-            case 'weight':
-                weightData = data.map(row => ({
-                    date: row.date,
-                    weight: parseFloat(row.weight) || 0,
-                    bodyFat: parseFloat(row.body_fat || row['body fat']) || null,
-                    notes: row.notes || ''
-                })).filter(row => row.weight > 0);
-                console.log('Processed weight data:', weightData.length, 'entries');
-                break;
-                
-            case 'workout':
-                workoutData = data.map(row => ({
-                    date: row.date,
-                    type: row.type,
-                    duration: row.duration,
-                    distance: parseFloat(row.distance) || null,
-                    hrZone: parseFloat(row['hr zone'] || row.hrzone || row['heart rate']) || null,
-                    notes: row.notes || '',
-                    muscleGroups: []
-                })).filter(row => row.type);
-                console.log('Processed workout data:', workoutData.length, 'entries');
-                break;
-                
-            case 'birthday':
-                birthdayData = data.map(row => ({
-                    name: row.name,
-                    date: row.date,
-                    age: parseFloat(row.age) || null,
-                    notes: row.notes || ''
-                })).filter(row => row.name);
-                console.log('Processed birthday data:', birthdayData.length, 'entries');
-                break;
-        }
-        
-    } catch (error) {
-        console.error(`Error loading ${filename}:`, error);
-        throw error;
+            break;
     }
 }
 
-// Also update the handleCSVImport function to not use window.fs:
-async function handleCSVImport(e) {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
+// Backup and restore functions
+function backupAllData() {
+    const backupData = {
+        workouts: workoutData,
+        weight: weightData,
+        birthdays: birthdayData,
+        timestamp: new Date().toISOString(),
+        version: '1.0'
+    };
+    
+    const filename = `fitness_backup_${new Date().toISOString().split('T')[0]}`;
+    exportToJSON(backupData, filename);
+    showToast('Backup created successfully!', 'success');
+}
+
+async function restoreFromBackup(e) {
+    const file = e.target.files[0];
+    if (!file) return;
     
     showLoading(true);
     
     try {
-        for (const file of files) {
-            const content = await readFileContent(file);
-            const filename = file.name.toLowerCase();
-            
-            console.log('Processing uploaded file:', filename);
-            
-            if (filename.includes('weight')) {
-                await loadCSVFromContent(content, 'weight');
-            } else if (filename.includes('workout')) {
-                await loadCSVFromContent(content, 'workout');
-            } else if (filename.includes('birthday')) {
-                await loadCSVFromContent(content, 'birthday');
-            }
-        }
+        const content = await readFileContent(file);
+        const backupData = JSON.parse(content);
+        
+        if (backupData.workouts) workoutData = backupData.workouts;
+        if (backupData.weight) weightData = backupData.weight;
+        if (backupData.birthdays) birthdayData = backupData.birthdays;
         
         updateDashboard();
-        showToast(`Imported ${files.length} file(s) successfully!`, 'success');
+        showToast('Data restored successfully!', 'success');
     } catch (error) {
-        console.error('Import error:', error);
-        showToast('Error importing files', 'error');
+        console.error('Restore error:', error);
+        showToast('Error restoring backup file', 'error');
     }
     
     showLoading(false);
     e.target.value = ''; // Reset file input
 }
 
-        function readFileContent(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = e => resolve(e.target.result);
-                reader.onerror = e => reject(e);
-                reader.readAsText(file);
-            });
-        }
+// Chat functionality
+function handleChatMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Add user message
+    addChatMessage(message, 'user');
+    input.value = '';
+    
+    // Process message and respond
+    setTimeout(() => {
+        const response = generateChatResponse(message);
+        addChatMessage(response, 'bot');
+    }, 500);
+}
 
-        async function loadCSVFromContent(content, type) {
-            const lines = content.trim().split('\n');
-            const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
-            
-            const data = lines.slice(1).map(line => {
-                const values = parseCSVLine(line);
-                const row = {};
-                headers.forEach((header, index) => {
-                    row[header] = values[index]?.trim().replace(/"/g, '') || '';
-                });
-                return row;
-            });
-            
-            switch (type) {
-                case 'weight':
-                    const newWeightData = data.map(row => ({
-                        date: row.date,
-                        weight: parseFloat(row.weight) || 0,
-                        bodyFat: parseFloat(row.body_fat || row.bodyfat) || null,
-                        notes: row.notes || ''
-                    })).filter(row => row.weight > 0);
-                    
-                    // Merge with existing data, avoiding duplicates
-                    newWeightData.forEach(newEntry => {
-                        const exists = weightData.some(existing => 
-                            existing.date === newEntry.date && existing.weight === newEntry.weight
-                        );
-                        if (!exists) {
-                            weightData.push(newEntry);
-                        }
-                    });
-                    weightData.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    break;
-                    
-                case 'workout':
-                    const newWorkoutData = data.map(row => ({
-                        date: row.date,
-                        type: row.type,
-                        duration: row.duration,
-                        distance: parseFloat(row.distance) || null,
-                        hrZone: parseFloat(row['hr zone'] || row.hrzone || row.hr_zone) || null,
-                        notes: row.notes || '',
-                        muscleGroups: row.muscle_groups ? row.muscle_groups.split(';') : []
-                    })).filter(row => row.type);
-                    
-                    newWorkoutData.forEach(newEntry => {
-                        const exists = workoutData.some(existing => 
-                            existing.date === newEntry.date && 
-                            existing.type === newEntry.type && 
-                            existing.duration === newEntry.duration
-                        );
-                        if (!exists) {
-                            workoutData.push(newEntry);
-                        }
-                    });
-                    workoutData.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    break;
-                    
-                case 'birthday':
-                    const newBirthdayData = data.map(row => ({
-                        name: row.name,
-                        date: row.date,
-                        age: parseFloat(row.age) || null,
-                        notes: row.notes || ''
-                    })).filter(row => row.name);
-                    
-                    newBirthdayData.forEach(newEntry => {
-                        const exists = birthdayData.some(existing => 
-                            existing.name === newEntry.name && existing.date === newEntry.date
-                        );
-                        if (!exists) {
-                            birthdayData.push(newEntry);
-                        }
-                    });
-                    birthdayData.sort((a, b) => new Date(a.date) - new Date(b.date));
-                    break;
-            }
-        }
+function addChatMessage(message, sender) {
+    const messagesContainer = document.getElementById('chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}`;
+    messageDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'Assistant'}:</strong> ${message}`;
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
 
-        // Backup and restore functions
-        function backupAllData() {
-            const backupData = {
-                workouts: workoutData,
-                weight: weightData,
-                birthdays: birthdayData,
-                timestamp: new Date().toISOString(),
-                version: '1.0'
-            };
-            
-            const filename = `fitness_backup_${new Date().toISOString().split('T')[0]}`;
-            exportToJSON(backupData, filename);
-            showToast('Backup created successfully!', 'success');
+function generateChatResponse(message) {
+    const lowerMessage = message.toLowerCase();
+    
+    // Weight-related queries
+    if (lowerMessage.includes('weight')) {
+        if (lowerMessage.includes('current') || lowerMessage.includes('latest')) {
+            const currentWeight = weightData.length > 0 ? weightData[0].weight : null;
+            return currentWeight ? `Your current weight is ${currentWeight} lbs.` : "I don't have any weight data recorded yet.";
         }
+        if (lowerMessage.includes('lost') || lowerMessage.includes('loss')) {
+            if (weightData.length === 0) return "I don't have weight data to calculate loss.";
+            const maxWeight = Math.max(...weightData.map(w => w.weight));
+            const currentWeight = weightData[0].weight;
+            const lost = maxWeight - currentWeight;
+            return `You've lost ${lost.toFixed(1)} lbs from your highest recorded weight of ${maxWeight} lbs.`;
+        }
+        if (lowerMessage.includes('average') || lowerMessage.includes('avg')) {
+            if (weightData.length === 0) return "I don't have weight data to calculate an average.";
+            const avg = weightData.reduce((sum, w) => sum + w.weight, 0) / weightData.length;
+            return `Your average weight is ${avg.toFixed(1)} lbs based on ${weightData.length} entries.`;
+        }
+    }
+    
+    // Workout-related queries
+    if (lowerMessage.includes('workout') || lowerMessage.includes('exercise')) {
+        if (lowerMessage.includes('this week')) {
+            const thisWeek = getWorkoutsThisWeek();
+            return `You've completed ${thisWeek} workout${thisWeek !== 1 ? 's' : ''} this week.`;
+        }
+        if (lowerMessage.includes('favorite') || lowerMessage.includes('most')) {
+            const mostCommon = getMostCommonWorkoutType();
+            return `Your most common workout type is ${mostCommon.toLowerCase()}.`;
+        }
+        if (lowerMessage.includes('total') || lowerMessage.includes('count')) {
+            return `You have ${workoutData.length} total workouts logged.`;
+        }
+    }
+    
+    // Birthday queries
+    if (lowerMessage.includes('birthday')) {
+        if (lowerMessage.includes('this week')) {
+            const thisWeek = getBirthdaysThisWeek();
+            return `There ${thisWeek === 1 ? 'is' : 'are'} ${thisWeek} birthday${thisWeek !== 1 ? 's' : ''} this week.`;
+        }
+        if (lowerMessage.includes('this month')) {
+            const thisMonth = getBirthdaysThisMonth();
+            return `There ${thisMonth === 1 ? 'is' : 'are'} ${thisMonth} birthday${thisMonth !== 1 ? 's' : ''} this month.`;
+        }
+    }
+    
+    // General statistics
+    if (lowerMessage.includes('summary') || lowerMessage.includes('overview')) {
+        const workoutsThisWeek = getWorkoutsThisWeek();
+        const currentWeight = weightData.length > 0 ? weightData[0].weight : null;
+        const birthdaysThisWeek = getBirthdaysThisWeek();
+        
+        let summary = "Here's your fitness summary:\n";
+        summary += `• ${workoutsThisWeek} workout${workoutsThisWeek !== 1 ? 's' : ''} this week\n`;
+        if (currentWeight) summary += `• Current weight: ${currentWeight} lbs\n`;
+        summary += `• ${birthdaysThisWeek} birthday${birthdaysThisWeek !== 1 ? 's' : ''} this week`;
+        
+        return summary;
+    }
+    
+    // Default responses
+    const defaultResponses = [
+        "I can help you analyze your fitness data! Try asking about your workouts, weight progress, or upcoming birthdays.",
+        "What would you like to know about your fitness journey? I can provide insights on your workout patterns, weight trends, or birthday reminders.",
+        "Feel free to ask me about your workout frequency, weight changes, or any other fitness-related questions!"
+    ];
+    
+    return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
+}
 
-        async function restoreFromBackup(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            showLoading(true);
-            
-            try {
-                const content = await readFileContent(file);
-                const backupData = JSON.parse(content);
-                
-                if (backupData.workouts) workoutData = backupData.workouts;
-                if (backupData.weight) weightData = backupData.weight;
-                if (backupData.birthdays) birthdayData = backupData.birthdays;
-                
-                updateDashboard();
-                showToast('Data restored successfully!', 'success');
-            } catch (error) {
-                console.error('Restore error:', error);
-                showToast('Error restoring backup file', 'error');
-            }
-            
-            showLoading(false);
-            e.target.value = ''; // Reset file input
-        }
+// Utility functions
+function showLoading(show) {
+    const loading = document.getElementById('loading');
+    if (show) {
+        loading.classList.add('active');
+    } else {
+        loading.classList.remove('active');
+    }
+}
 
-        // Chat functionality
-        function handleChatMessage() {
-            const input = document.getElementById('chat-input');
-            const message = input.value.trim();
-            
-            if (!message) return;
-            
-            // Add user message
-            addChatMessage(message, 'user');
-            input.value = '';
-            
-            // Process message and respond
-            setTimeout(() => {
-                const response = generateChatResponse(message);
-                addChatMessage(response, 'bot');
-            }, 500);
-        }
-
-        function addChatMessage(message, sender) {
-            const messagesContainer = document.getElementById('chat-messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `chat-message ${sender}`;
-            messageDiv.innerHTML = `<strong>${sender === 'user' ? 'You' : 'Assistant'}:</strong> ${message}`;
-            messagesContainer.appendChild(messageDiv);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
-
-        function generateChatResponse(message) {
-            const lowerMessage = message.toLowerCase();
-            
-            // Weight-related queries
-            if (lowerMessage.includes('weight')) {
-                if (lowerMessage.includes('current') || lowerMessage.includes('latest')) {
-                    const currentWeight = weightData.length > 0 ? weightData[0].weight : null;
-                    return currentWeight ? `Your current weight is ${currentWeight} lbs.` : "I don't have any weight data recorded yet.";
-                }
-                if (lowerMessage.includes('lost') || lowerMessage.includes('loss')) {
-                    if (weightData.length === 0) return "I don't have weight data to calculate loss.";
-                    const maxWeight = Math.max(...weightData.map(w => w.weight));
-                    const currentWeight = weightData[0].weight;
-                    const lost = maxWeight - currentWeight;
-                    return `You've lost ${lost.toFixed(1)} lbs from your highest recorded weight of ${maxWeight} lbs.`;
-                }
-                if (lowerMessage.includes('average') || lowerMessage.includes('avg')) {
-                    if (weightData.length === 0) return "I don't have weight data to calculate an average.";
-                    const avg = weightData.reduce((sum, w) => sum + w.weight, 0) / weightData.length;
-                    return `Your average weight is ${avg.toFixed(1)} lbs based on ${weightData.length} entries.`;
-                }
-            }
-            
-            // Workout-related queries
-            if (lowerMessage.includes('workout') || lowerMessage.includes('exercise')) {
-                if (lowerMessage.includes('this week')) {
-                    const thisWeek = getWorkoutsThisWeek();
-                    return `You've completed ${thisWeek} workout${thisWeek !== 1 ? 's' : ''} this week.`;
-                }
-                if (lowerMessage.includes('favorite') || lowerMessage.includes('most')) {
-                    const mostCommon = getMostCommonWorkoutType();
-                    return `Your most common workout type is ${mostCommon.toLowerCase()}.`;
-                }
-                if (lowerMessage.includes('total') || lowerMessage.includes('count')) {
-                    return `You have ${workoutData.length} total workouts logged.`;
-                }
-            }
-            
-            // Birthday queries
-            if (lowerMessage.includes('birthday')) {
-                if (lowerMessage.includes('this week')) {
-                    const thisWeek = getBirthdaysThisWeek();
-                    return `There ${thisWeek === 1 ? 'is' : 'are'} ${thisWeek} birthday${thisWeek !== 1 ? 's' : ''} this week.`;
-                }
-                if (lowerMessage.includes('this month')) {
-                    const thisMonth = getBirthdaysThisMonth();
-                    return `There ${thisMonth === 1 ? 'is' : 'are'} ${thisMonth} birthday${thisMonth !== 1 ? 's' : ''} this month.`;
-                }
-            }
-            
-            // General statistics
-            if (lowerMessage.includes('summary') || lowerMessage.includes('overview')) {
-                const workoutsThisWeek = getWorkoutsThisWeek();
-                const currentWeight = weightData.length > 0 ? weightData[0].weight : null;
-                const birthdaysThisWeek = getBirthdaysThisWeek();
-                
-                let summary = "Here's your fitness summary:\n";
-                summary += `• ${workoutsThisWeek} workout${workoutsThisWeek !== 1 ? 's' : ''} this week\n`;
-                if (currentWeight) summary += `• Current weight: ${currentWeight} lbs\n`;
-                summary += `• ${birthdaysThisWeek} birthday${birthdaysThisWeek !== 1 ? 's' : ''} this week`;
-                
-                return summary;
-            }
-            
-            // Default responses
-            const defaultResponses = [
-                "I can help you analyze your fitness data! Try asking about your workouts, weight progress, or upcoming birthdays.",
-                "What would you like to know about your fitness journey? I can provide insights on your workout patterns, weight trends, or birthday reminders.",
-                "Feel free to ask me about your workout frequency, weight changes, or any other fitness-related questions!"
-            ];
-            
-            return defaultResponses[Math.floor(Math.random() * defaultResponses.length)];
-        }
-
-        // Utility functions
-        function showLoading(show) {
-            const loading = document.getElementById('loading');
-            if (show) {
-                loading.classList.add('active');
-            } else {
-                loading.classList.remove('active');
-            }
-        }
-
-        function showToast(message, type = 'info') {
-            const container = document.getElementById('toast-container');
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            
-            container.appendChild(toast);
-            
-            // Trigger animation
-            setTimeout(() => toast.classList.add('show'), 100);
-            
-            // Remove after 3 seconds
-            setTimeout(() => {
-                toast.classList.remove('show');
-                setTimeout(() => container.removeChild(toast), 300);
-            }, 3000);
-        }
-    </script>
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    
+    container.appendChild(toast);
+    
+    // Trigger animation
+    setTimeout(() => toast.classList.add('show'), 100);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => container.removeChild(toast), 300);
+    }, 3000);
+}
 </body>
 </html>
         
