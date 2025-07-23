@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Data Migration to Supabase</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .status {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        .progress {
+            background: #e9ecef;
+            border-radius: 10px;
+            height: 20px;
+            margin: 10px 0;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        
+        .success {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        .error {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        
+        .warning {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏋️ Fitness Data Migration</h1>
+        
+        <div class="status">
+            <h3>Migration Status: <span id="status">Ready to start</span></h3>
+            <div class="progress">
+                <div class="progress-bar" id="progress"></div>
+            </div>
+            <p id="current-task">Click "Start Migration" to import your fitness data into Supabase</p>
+        </div>
+        
+        <button class="btn" id="migrate-btn" onclick="startMigration()">
+            Start Migration
+        </button>
+        
+        <div class="log" id="log" style="display: none;"></div>
+        
+        <div id="summary" style="display: none;">
+            <h3>Migration Complete! 🎉</h3>
+            <p>Your fitness data has been successfully imported into Supabase.</p>
+            <p><strong>Next step:</strong> I'll now update your fitness app to use the database instead of CSV files.</p>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://qwzyypcnxbfkqrxmgbsh.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3enl5cGNueGJma3FyeG1nYnNoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMzMDE2NjAsImV4cCI6MjA2ODg3NzY2MH0.YdTmmC3qXxsXt4apwWxwVgp76KF2YtNcGZrv8CSbxDw';
+        
+        let migrationLog = [];
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('log');
+            const entry = `[${timestamp}] ${message}`;
+            
+            migrationLog.push(entry);
+            
+            const colorClass = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            logElement.innerHTML += `<div class="${colorClass}">${entry}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            logElement.style.display = 'block';
+            
+            console.log(entry);
+        }
+        
+        function updateProgress(percent, task) {
+            document.getElementById('progress').style.width = percent + '%';
+            document.getElementById('current-task').textContent = task;
+            document.getElementById('status').textContent = `${Math.round(percent)}% complete`;
+        }
+        
+        async function supabaseRequest(endpoint, method = 'GET', body = null) {
+            const url = `${SUPABASE_URL}/rest/v1/${endpoint}`;
+            const options = {
+                method,
+                headers: {
+                    'apikey': SUPABASE_KEY,
+                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=minimal'
+                }
+            };
+            
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+            
+            const response = await fetch(url, options);
+            
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`Supabase error: ${response.status} - ${error}`);
+            }
+            
+            if (method === 'GET') {
+                return await response.json();
+            }
+            
+            return response;
+        }
+        
+        async function loadCSVData(filename) {
+            log(`Loading ${filename}...`);
+            
+            try {
+                const response = await fetch(filename);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const csvText = await response.text();
+                const lines = csvText.trim().split('\n');
+                const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                
+                const rows = lines.slice(1).map(line => {
+                    const values = parseCSVLine(line);
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        let value = values[index]?.trim().replace(/"/g, '') || '';
+                        if (value === '' || value === 'NULL') {
+                            value = null;
+                        }
+                        row[header] = value;
+                    });
+                    return row;
+                });
+                
+                log(`✅ Loaded ${rows.length} rows from ${filename}`, 'success');
+                return rows;
+            } catch (error) {
+                log(`❌ Error loading ${filename}: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+        
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            
+            result.push(current);
+            return result;
+        }
+        
+        function parseDate(dateStr) {
+            if (!dateStr) return null;
+            
+            // Handle MM/DD/YYYY format
+            if (dateStr.includes('/')) {
+                const [month, day, year] = dateStr.split('/');
+                return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            }
+            
+            // Already in YYYY-MM-DD format
+            return dateStr;
+        }
+        
+        async function insertDataBatch(tableName, data, batchSize = 50) {
+            const totalBatches = Math.ceil(data.length / batchSize);
+            let inserted = 0;
+            
+            for (let i = 0; i < data.length; i += batchSize) {
+                const batch = data.slice(i, i + batchSize);
+                const batchNum = Math.floor(i / batchSize) + 1;
+                
+                try {
+                    await supabaseRequest(tableName, 'POST', batch);
+                    inserted += batch.length;
+                    log(`✅ Inserted batch ${batchNum}/${totalBatches} into ${tableName} (${batch.length} records)`, 'success');
+                } catch (error) {
+                    log(`❌ Error inserting batch ${batchNum} into ${tableName}: ${error.message}`, 'error');
+                    throw error;
+                }
+            }
+            
+            return inserted;
+        }
+        
+        async function migrateWeightData() {
+            log('🏋️ Migrating weight data...');
+            updateProgress(10, 'Loading weight data...');
+            
+            const rawData = await loadCSVData('Clean_Weight_Log.csv');
+            
+            const weightData = rawData.map(row => ({
+                date: parseDate(row.date),
+                weight: parseFloat(row.weight) || null,
+                body_fat: parseFloat(row.body_fat) || null,
+                notes: row.notes || null
+            })).filter(row => row.date && row.weight);
+            
+            updateProgress(20, 'Inserting weight data...');
+            const inserted = await insertDataBatch('weight_logs', weightData);
+            
+            log(`✅ Successfully migrated ${inserted} weight entries`, 'success');
+            return inserted;
+        }
+        
+        async function migrateWorkoutData() {
+            log('💪 Migrating workout data...');
+            updateProgress(40, 'Loading workout data...');
+            
+            const rawData = await loadCSVData('Clean_Workout_Log.csv');
+            
+            const workoutData = rawData.map(row => ({
+                date: parseDate(row.date),
+                type: row.type || null,
+                duration: row.duration || null,
+                distance: parseFloat(row.distance) || null,
+                hr_zone: parseFloat(row['hr zone']) || null,
+                notes: row.notes || null
+            })).filter(row => row.date && row.type);
+            
+            updateProgress(60, 'Inserting workout data...');
+            const inserted = await insertDataBatch('workouts', workoutData);
+            
+            log(`✅ Successfully migrated ${inserted} workout entries`, 'success');
+            return inserted;
+        }
+        
+        async function migrateBirthdayData() {
+            log('🎂 Migrating birthday data...');
+            updateProgress(80, 'Loading birthday data...');
+            
+            const rawData = await loadCSVData('Clean_Birthdays.csv');
+            
+            const birthdayData = rawData.map(row => ({
+                name: row.name || null,
+                date: parseDate(row.date),
+                age: parseInt(row.age) || null,
+                notes: row.notes || null
+            })).filter(row => row.name && row.date);
+            
+            updateProgress(90, 'Inserting birthday data...');
+            const inserted = await insertDataBatch('birthdays', birthdayData);
+            
+            log(`✅ Successfully migrated ${inserted} birthday entries`, 'success');
+            return inserted;
+        }
+        
+        async function startMigration() {
+            const btn = document.getElementById('migrate-btn');
+            btn.disabled = true;
+            btn.textContent = 'Migrating...';
+            
+            try {
+                log('🚀 Starting fitness data migration to Supabase...', 'success');
+                
+                const weightCount = await migrateWeightData();
+                const workoutCount = await migrateWorkoutData();
+                const birthdayCount = await migrateBirthdayData();
+                
+                updateProgress(100, 'Migration complete!');
+                
+                log('🎉 Migration completed successfully!', 'success');
+                log(`📊 Total records migrated:`, 'success');
+                log(`   • Weight entries: ${weightCount}`, 'success');
+                log(`   • Workout entries: ${workoutCount}`, 'success');
+                log(`   • Birthday entries: ${birthdayCount}`, 'success');
+                log(`   • Total: ${weightCount + workoutCount + birthdayCount} records`, 'success');
+                
+                document.getElementById('status').textContent = 'Complete';
+                document.getElementById('summary').style.display = 'block';
+                
+                btn.textContent = 'Migration Complete ✅';
+                
+            } catch (error) {
+                log(`❌ Migration failed: ${error.message}`, 'error');
+                document.getElementById('status').textContent = 'Failed';
+                btn.disabled = false;
+                btn.textContent = 'Retry Migration';
+            }
+        }
+    </script>
+</body>
+</html>
