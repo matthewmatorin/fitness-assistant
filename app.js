@@ -1231,8 +1231,8 @@ const settings = {
 // Sample Data for Demo
 const sampleData = {
     loadSampleData: () => {
-        // Only load if no existing data
-        if (appState.workouts.length === 0 && appState.weights.length === 0 && appState.birthdays.length === 0) {
+        // Disabled - don't load sample data
+        if (false) {
             // Sample workouts
             const sampleWorkouts = [
                 {
