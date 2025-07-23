@@ -1,0 +1,2072 @@
+        // ===== MODAL AND FORM FUNCTIONS =====
+        
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.classList.add('active');
+            
+            // Set default dates for forms
+            if (modalId.includes('weight') || modalId.includes('workout') || modalId.includes('birthday')) {
+                const dateInput = modal.querySelector('input[type="date"]');
+                if (dateInput && !dateInput.value) {
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                }
+
+        // ===== MODAL AND FORM FUNCTIONS (DEFINED EARLY) =====
+        
+        function openModal(modalId) {
+            console.log('Opening modal:', modalId);
+            const modal = document.getElementById(modalId);
+            if (!modal) {
+                console.error('Modal not found:', modalId);
+                return;
+            }
+            modal.classList.add('active');
+            
+            // Set default dates for forms
+            if (modalId.includes('weight') || modalId.includes('workout') || modalId.includes('birthday')) {
+                const dateInput = modal.querySelector('input[type="date"]');
+                if (dateInput && !dateInput.value) {
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                }
+            }
+            
+            // Load specific modal content
+            if (modalId === 'workout-detail-modal') {
+                loadWorkoutDetails();
+            } else if (modalId === 'weight-detail-modal') {
+                loadWeightDetails();
+            } else if (modalId === 'birthday-detail-modal') {
+                loadBirthdayDetails();
+            }
+        }
+
+        function closeModal(modalId) {
+            console.log('Closing modal:', modalId);
+            const modal = document.getElementById(modalId);
+            if (!modal) {
+                console.error('Modal not found:', modalId);
+                return;
+            }
+            modal.classList.remove('active');
+            
+            // Reset forms
+            const form = modal.querySelector('form');
+            if (form) {
+                form.reset();
+                // Hide conditional fields
+                document.querySelectorAll('.conditional').forEach(field => {
+                    field.classList.remove('show');
+                });
+            }
+        }
+
+        function handleWorkoutTypeChange(e) {
+            const type = e.target.value;
+            
+            // Hide all conditional fields first
+            document.querySelectorAll('.conditional').forEach(field => {
+                field.classList.remove('show');
+                // Reset required attributes
+                const inputs = field.querySelectorAll('input, select');
+                inputs.forEach(input => input.required = false);
+            });
+            
+            // Show relevant fields based on workout type
+            switch (type) {
+                case 'walk':
+                    document.getElementById('duration-group').classList.add('show');
+                    document.getElementById('hr-group').classList.add('show');
+                    document.getElementById('workout-duration').required = true;
+                    document.getElementById('workout-hr').required = true;
+                    break;
+                case 'run':
+                    document.getElementById('distance-group').classList.add('show');
+                    document.getElementById('workout-distance').required = true;
+                    break;
+                case 'lift':
+                    document.getElementById('muscle-group').classList.add('show');
+                    break;
+                case 'tennis':
+                case 'other':
+                    // No additional required fields
+                    break;
+            }
+        }
+
+        function handleWeightSubmit(e) {
+            e.preventDefault();
+            
+            const weightEntry = {
+                date: parseDate(document.getElementById('weight-date').value.replace(/-/g, '/')),
+                weight: parseFloat(document.getElementById('weight-value').value),
+                bodyFat: parseFloat(document.getElementById('body-fat').value) || null,
+                notes: document.getElementById('weight-notes').value,
+                originalDate: document.getElementById('weight-date').value.replace(/-/g, '/')
+            };
+            
+            console.log('Adding new weight entry:', weightEntry);
+            
+            weightData.unshift(weightEntry); // Add to beginning (most recent)
+            weightData.sort((a, b) => b.date - a.date); // Re-sort to maintain order
+            
+            updateDashboard();
+            closeModal('weight-modal');
+            showToast('Weight logged successfully!', 'success');
+        }
+
+        function handleWorkoutSubmit(e) {
+            e.preventDefault();
+            
+            const muscleGroups = Array.from(document.querySelectorAll('#muscle-group input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            
+            const workoutEntry = {
+                date: parseDate(document.getElementById('workout-date').value.replace(/-/g, '/')),
+                type: document.getElementById('workout-type').value,
+                duration: document.getElementById('workout-duration').value,
+                distance: parseFloat(document.getElementById('workout-distance').value) || null,
+                hrZone: parseInt(document.getElementById('workout-hr').value) || null,
+                notes: document.getElementById('workout-notes').value,
+                muscleGroups: muscleGroups,
+                originalDate: document.getElementById('workout-date').value.replace(/-/g, '/')
+            };
+            
+            console.log('Adding new workout entry:', workoutEntry);
+            
+            workoutData.unshift(workoutEntry); // Add to beginning (most recent)
+            workoutData.sort((a, b) => b.date - a.date); // Re-sort to maintain order
+            
+            updateDashboard();
+            closeModal('workout-modal');
+            showToast('Workout logged successfully!', 'success');
+        }
+
+        function handleBirthdaySubmit(e) {
+            e.preventDefault();
+            
+            const birthdayEntry = {
+                name: document.getElementById('birthday-name').value,
+                date: parseDate(document.getElementById('birthday-date').value.replace(/-/g, '/')),
+                age: parseInt(document.getElementById('birthday-age').value) || null,
+                notes: document.getElementById('birthday-notes').value,
+                originalDate: document.getElementById('birthday-date').value.replace(/-/g, '/')
+            };
+            
+            console.log('Adding new birthday entry:', birthdayEntry);
+            
+            birthdayData.push(birthdayEntry);
+            birthdayData.sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort by date
+            
+            updateDashboard();
+            closeModal('birthday-modal');
+            showToast('Birthday added successfully!', 'success');
+        }
+
+        // Detail modal functions
+        function loadWorkoutDetails() {
+            const recentWorkouts = workoutData.slice(0, 14);
+            const workoutList = document.getElementById('workout-list');
+            
+            if (recentWorkouts.length === 0) {
+                workoutList.innerHTML = '<p>No workouts logged yet.</p>';
+                return;
+            }
+            
+            workoutList.innerHTML = recentWorkouts.map(workout => `
+                <div class="workout-item">
+                    <div class="workout-header">
+                        <span class="workout-type">${workout.type.toUpperCase()}</span>
+                        <span class="workout-date">${new Date(workout.date).toLocaleDateString()}</span>
+                    </div>
+                    <div class="workout-details">
+                        ${workout.duration ? `<span>Duration: ${workout.duration} min</span>` : ''}
+                        ${workout.distance ? `<span>Distance: ${workout.distance} mi</span>` : ''}
+                        ${workout.hrZone ? `<span>HR Zone: ${workout.hrZone}</span>` : ''}
+                        ${workout.muscleGroups && workout.muscleGroups.length ? `<span>Muscles: ${workout.muscleGroups.join(', ')}</span>` : ''}
+                    </div>
+                    ${workout.notes ? `<div class="workout-notes">${workout.notes}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function loadWeightDetails() {
+            updateWeightDetailChart('7');
+        }
+
+        function loadBirthdayDetails() {
+            const today = new Date();
+            const thisMonth = birthdayData.filter(birthday => {
+                return birthday.date.getMonth() === today.getMonth();
+            });
+            
+            const birthdayList = document.getElementById('birthday-list');
+            
+            if (thisMonth.length === 0) {
+                birthdayList.innerHTML = '<p>No birthdays this month.</p>';
+                return;
+            }
+            
+            birthdayList.innerHTML = thisMonth.map(birthday => `
+                <div class="birthday-item">
+                    <h4>${birthday.name}</h4>
+                    <p>Date: ${new Date(birthday.date).toLocaleDateString()}</p>
+                    ${birthday.age ? `<p>Age: ${birthday.age}</p>` : ''}
+                    ${birthday.notes ? `<p>Notes: ${birthday.notes}</p>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Chart function for weight details
+        function updateWeightDetailChart(days) {
+            const ctx = document.getElementById('weight-detail-chart').getContext('2d');
+            
+            let filteredData = [...weightData];
+            
+            if (days !== 'all') {
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
+                filteredData = weightData.filter(w => w.date >= cutoffDate);
+            }
+            
+            filteredData.sort((a, b) => a.date - b.date);
+            
+            if (window.weightDetailChart) {
+                window.weightDetailChart.destroy();
+            }
+            
+            if (filteredData.length === 0) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.fillText('No weight data available', 150, 150);
+                return;
+            }
+            
+            window.weightDetailChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: filteredData.map(w => new Date(w.date).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Weight (lbs)',
+                        data: filteredData.map(w => w.weight),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    }
+                }
+            });
+        }
+            }
+            
+            // Load specific modal content
+            if (modalId === 'workout-detail-modal') {
+                loadWorkoutDetails();
+            } else if (modalId === 'weight-detail-modal') {
+                loadWeightDetails();
+            } else if (modalId === 'birthday-detail-modal') {
+                loadBirthdayDetails();
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+            
+            // Reset forms
+            const form = document.querySelector(`#${modalId} form`);
+            if (form) {
+                form.reset();
+                // Hide conditional fields
+                document.querySelectorAll('.conditional').forEach(field => {
+                    field.classList.remove('show');
+                });
+            }
+        }
+
+        function handleWorkoutTypeChange(e) {
+            const type = e.target.value;
+            
+            // Hide all conditional fields first
+            document.querySelectorAll('.conditional').forEach(field => {
+                field.classList.remove('show');
+                // Reset required attributes
+                const inputs = field.querySelectorAll('input, select');
+                inputs.forEach(input => input.required = false);
+            });
+            
+            // Show relevant fields based on workout type
+            switch (type) {
+                case 'walk':
+                    document.getElementById('duration-group').classList.add('show');
+                    document.getElementById('hr-group').classList.add('show');
+                    document.getElementById('workout-duration').required = true;
+                    document.getElementById('workout-hr').required = true;
+                    break;
+                case 'run':
+                    document.getElementById('distance-group').classList.add('show');
+                    document.getElementById('workout-distance').required = true;
+                    break;
+                case 'lift':
+                    document.getElementById('muscle-group').classList.add('show');
+                    break;
+                case 'tennis':
+                case 'other':
+                    // No additional required fields
+                    break;
+            }
+        }
+
+        function handleWeightSubmit(e) {
+            e.preventDefault();
+            
+            const weightEntry = {
+                date: parseDate(document.getElementById('weight-date').value.replace(/-/g, '/')),
+                weight: parseFloat(document.getElementById('weight-value').value),
+                bodyFat: parseFloat(document.getElementById('body-fat').value) || null,
+                notes: document.getElementById('weight-notes').value,
+                originalDate: document.getElementById('weight-date').value.replace(/-/g, '/')
+            };
+            
+            console.log('Adding new weight entry:', weightEntry);
+            
+            weightData.unshift(weightEntry); // Add to beginning (most recent)
+            weightData.sort((a, b) => b.date - a.date); // Re-sort to maintain order
+            
+            updateDashboard();
+            closeModal('weight-modal');
+            showToast('Weight logged successfully!', 'success');
+        }
+
+        function handleWorkoutSubmit(e) {
+            e.preventDefault();
+            
+            const muscleGroups = Array.from(document.querySelectorAll('#muscle-group input[type="checkbox"]:checked'))
+                .map(cb => cb.value);
+            
+            const workoutEntry = {
+                date: parseDate(document.getElementById('workout-date').value.replace(/-/g, '/')),
+                type: document.getElementById('workout-type').value,
+                duration: document.getElementById('workout-duration').value,
+                distance: parseFloat(document.getElementById('workout-distance').value) || null,
+                hrZone: parseInt(document.getElementById('workout-hr').value) || null,
+                notes: document.getElementById('workout-notes').value,
+                muscleGroups: muscleGroups,
+                originalDate: document.getElementById('workout-date').value.replace(/-/g, '/')
+            };
+            
+            console.log('Adding new workout entry:', workoutEntry);
+            
+            workoutData.unshift(workoutEntry); // Add to beginning (most recent)
+            workoutData.sort((a, b) => b.date - a.date); // Re-sort to maintain order
+            
+            updateDashboard();
+            closeModal('workout-modal');
+            showToast('Workout logged successfully!', 'success');
+        }
+
+        function handleBirthdaySubmit(e) {
+            e.preventDefault();
+            
+            const birthdayEntry = {
+                name: document.getElementById('birthday-name').value,
+                date: parseDate(document.getElementById('birthday-date').value.replace(/-/g, '/')),
+                age: parseInt(document.getElementById('birthday-age').value) || null,
+                notes: document.getElementById('birthday-notes').value,
+                originalDate: document.getElementById('birthday-date').value.replace(/-/g, '/')
+            };
+            
+            console.log('Adding new birthday entry:', birthdayEntry);
+            
+            birthdayData.push(birthdayEntry);
+            birthdayData.sort((a, b) => new Date(a.date) - new Date(b.date)); // Sort by date
+            
+            updateDashboard();
+            closeModal('birthday-modal');
+            showToast('Birthday added successfully!', 'success');
+        }
+
+        // Detail modal functions
+        function loadWorkoutDetails() {
+            const recentWorkouts = workoutData.slice(0, 14);
+            const workoutList = document.getElementById('workout-list');
+            
+            if (recentWorkouts.length === 0) {
+                workoutList.innerHTML = '<p>No workouts logged yet.</p>';
+                return;
+            }
+            
+            workoutList.innerHTML = recentWorkouts.map(workout => `
+                <div class="workout-item">
+                    <div class="workout-header">
+                        <span class="workout-type">${workout.type.toUpperCase()}</span>
+                        <span class="workout-date">${new Date(workout.date).toLocaleDateString()}</span>
+                    </div>
+                    <div class="workout-details">
+                        ${workout.duration ? `<span>Duration: ${workout.duration} min</span>` : ''}
+                        ${workout.distance ? `<span>Distance: ${workout.distance} mi</span>` : ''}
+                        ${workout.hrZone ? `<span>HR Zone: ${workout.hrZone}</span>` : ''}
+                        ${workout.muscleGroups && workout.muscleGroups.length ? `<span>Muscles: ${workout.muscleGroups.join(', ')}</span>` : ''}
+                    </div>
+                    ${workout.notes ? `<div class="workout-notes">${workout.notes}</div>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function loadWeightDetails() {
+            updateWeightDetailChart('7');
+        }
+
+        function loadBirthdayDetails() {
+            const today = new Date();
+            const thisMonth = birthdayData.filter(birthday => {
+                return birthday.date.getMonth() === today.getMonth();
+            });
+            
+            const birthdayList = document.getElementById('birthday-list');
+            
+            if (thisMonth.length === 0) {
+                birthdayList.innerHTML = '<p>No birthdays this month.</p>';
+                return;
+            }
+            
+            birthdayList.innerHTML = thisMonth.map(birthday => `
+                <div class="birthday-item">
+                    <h4>${birthday.name}</h4>
+                    <p>Date: ${new Date(birthday.date).toLocaleDateString()}</p>
+                    ${birthday.age ? `<p>Age: ${birthday.age}</p>` : ''}
+                    ${birthday.notes ? `<p>Notes: ${birthday.notes}</p>` : ''}
+                </div>
+            `).join('');
+        }
+
+        // Chart function for weight details
+        function updateWeightDetailChart(days) {
+            const ctx = document.getElementById('weight-detail-chart').getContext('2d');
+            
+            let filteredData = [...weightData];
+            
+            if (days !== 'all') {
+                const cutoffDate = new Date();
+                cutoffDate.setDate(cutoffDate.getDate() - parseInt(days));
+                filteredData = weightData.filter(w => w.date >= cutoffDate);
+            }
+            
+            filteredData.sort((a, b) => a.date - b.date);
+            
+            if (window.weightDetailChart) {
+                window.weightDetailChart.destroy();
+            }
+            
+            if (filteredData.length === 0) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.fillText('No weight data available', 150, 150);
+                return;
+            }
+            
+            window.weightDetailChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: filteredData.map(w => new Date(w.date).toLocaleDateString()),
+                    datasets: [{
+                        label: 'Weight (lbs)',
+                        data: filteredData.map(w => w.weight),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    }
+                }
+            });
+        }<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Assistant</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            padding-bottom: 80px;
+            min-height: 100vh;
+        }
+
+        /* Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            display: flex;
+            justify-content: space-around;
+            padding: 15px 0;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            color: #666;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            padding: 5px 15px;
+            border-radius: 12px;
+        }
+
+        .nav-btn:hover,
+        .nav-btn.active {
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .nav-btn i {
+            font-size: 20px;
+        }
+
+        .nav-btn span {
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .date {
+            color: rgba(255, 255, 255, 0.9);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 500;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Quick Actions */
+        .quick-actions {
+            margin-bottom: 30px;
+        }
+
+        .quick-actions h2 {
+            color: white;
+            margin-bottom: 15px;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+        }
+
+        .action-btn {
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            padding: 20px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .action-btn i {
+            font-size: 24px;
+            color: #667eea;
+        }
+
+        .action-btn span {
+            font-weight: 600;
+            color: #333;
+        }
+
+        /* Summary Cards */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-icon {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .card-content h3 {
+            font-size: 16px;
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .main-stat {
+            font-size: 32px;
+            font-weight: 700;
+            color: #333;
+            display: block;
+        }
+
+        .sub-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            margin-top: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .trend {
+            font-weight: 600;
+        }
+
+        .trend.positive {
+            color: #10b981;
+        }
+
+        .trend.negative {
+            color: #ef4444;
+        }
+
+        /* Settings */
+        .settings-section {
+            color: white;
+        }
+
+        .setting-group {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .setting-group h3 {
+            margin-bottom: 20px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .data-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-1px);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 3000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 4000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: white;
+            border-radius: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            border-left: 4px solid #667eea;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            max-width: 300px;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.success {
+            border-left-color: #10b981;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        .toast.warning {
+            border-left-color: #f59e0b;
+        }
+
+        /* Modals */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 25px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .modal-header h3 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            padding: 5px;
+            border-radius: 50%;
+            transition: background 0.3s ease;
+        }
+
+        .close-btn:hover {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-form {
+            padding: 25px;
+        }
+
+        .modal-body {
+            padding: 25px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            outline: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: normal;
+            cursor: pointer;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+
+        .conditional {
+            display: none;
+        }
+
+        .conditional.show {
+            display: block;
+        }
+
+        .btn-secondary {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            border: 1px solid #667eea;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        /* Detail Modal Styles */
+        .workout-item {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .workout-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .workout-type {
+            background: #667eea;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .workout-date {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .workout-details {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .workout-details span {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .workout-notes {
+            font-style: italic;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .birthday-item {
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+        }
+
+        .birthday-item h4 {
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .birthday-item p {
+            margin: 2px 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            border: 1px solid #667eea;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 10px;
+                padding-bottom: 80px;
+            }
+            
+            .header {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+            
+            .header h1 {
+                font-size: 24px;
+            }
+            
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+            
+            .card {
+                flex-direction: column;
+                text-align: center;
+                gap: 15px;
+            }
+            
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .nav-btn span {
+                display: none;
+            }
+            
+            .nav-btn {
+                padding: 8px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-tab="dashboard">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-btn" data-tab="insights">
+                <i class="fas fa-chart-line"></i>
+                <span>Insights</span>
+            </button>
+            <button class="nav-btn" data-tab="settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </button>
+        </nav>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <header class="header">
+                <h1>Dashboard</h1>
+                <div class="date">
+                    <i class="fas fa-calendar"></i>
+                    <span id="current-date"></span>
+                </div>
+            </header>
+
+            <!-- Quick Actions -->
+            <section class="quick-actions">
+                <h2>Quick Actions</h2>
+                <div class="action-buttons">
+                    <button class="action-btn" id="log-weight-btn">
+                        <i class="fas fa-weight"></i>
+                        <span>Log Weight</span>
+                    </button>
+                    <button class="action-btn" id="log-workout-btn">
+                        <i class="fas fa-dumbbell"></i>
+                        <span>Log Workout</span>
+                    </button>
+                    <button class="action-btn" id="log-birthday-btn">
+                        <i class="fas fa-birthday-cake"></i>
+                        <span>Add Birthday</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Summary Cards -->
+            <section class="summary-cards">
+                <div class="card" id="workout-card">
+                    <div class="card-icon">
+                        <i class="fas fa-dumbbell"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Workouts This Week</h3>
+                        <div class="card-stats">
+                            <span class="main-stat" id="workouts-this-week">0</span>
+                            <div class="sub-stats">
+                                <span>Avg: <span id="workouts-avg">0</span>/week</span>
+                                <span class="trend" id="workout-trend">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="weight-card">
+                    <div class="card-icon">
+                        <i class="fas fa-weight"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Current Weight</h3>
+                        <div class="card-stats">
+                            <span class="main-stat" id="current-weight">--</span>
+                            <div class="sub-stats">
+                                <span>Lost: <span id="weight-lost">0</span> lbs</span>
+                                <span class="trend" id="weight-trend">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="birthday-card">
+                    <div class="card-icon">
+                        <i class="fas fa-birthday-cake"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Birthdays This Week</h3>
+                        <div class="card-stats">
+                            <span class="main-stat" id="birthdays-this-week">0</span>
+                            <div class="sub-stats">
+                                <span>This month: <span id="birthdays-this-month">0</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Insights Tab -->
+        <div id="insights" class="tab-content">
+            <header class="header">
+                <h1>Insights</h1>
+            </header>
+            <div style="color: white; text-align: center; padding: 50px;">
+                <h3>Insights Coming Soon</h3>
+                <p>Charts and data analysis will be added here</p>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+            <header class="header">
+                <h1>Settings</h1>
+            </header>
+            
+            <section class="settings-section">
+                <div class="setting-group">
+                    <h3>Data Status</h3>
+                    <div id="data-status">
+                        <p>Loading data...</p>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <h3>Data Management</h3>
+                    <div class="data-actions">
+                        <button id="refresh-data-btn" class="btn-primary">
+                            <i class="fas fa-refresh"></i> Refresh Data
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Weight Modal -->
+    <div id="weight-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Log Weight</h3>
+                <button class="close-btn" data-modal="weight-modal">&times;</button>
+            </div>
+            <form id="weight-form" class="modal-form">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="weight-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Weight (lbs)</label>
+                    <input type="number" id="weight-value" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Body Fat % (optional)</label>
+                    <input type="number" id="body-fat" step="0.1" min="0" max="50">
+                </div>
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="weight-notes" rows="2"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Submit</button>
+                    <button type="button" class="btn-secondary" data-modal="weight-modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Workout Modal -->
+    <div id="workout-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Log Workout</h3>
+                <button class="close-btn" data-modal="workout-modal">&times;</button>
+            </div>
+            <form id="workout-form" class="modal-form">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="workout-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Workout Type</label>
+                    <select id="workout-type" required>
+                        <option value="">Select type</option>
+                        <option value="walk">Walk</option>
+                        <option value="lift">Lift</option>
+                        <option value="run">Run</option>
+                        <option value="tennis">Tennis</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group conditional" id="duration-group">
+                    <label>Duration (minutes)</label>
+                    <input type="number" id="workout-duration" min="1">
+                </div>
+                <div class="form-group conditional" id="distance-group">
+                    <label>Distance (miles)</label>
+                    <input type="number" id="workout-distance" step="0.1" min="0.1">
+                </div>
+                <div class="form-group conditional" id="hr-group">
+                    <label>Heart Rate Zone</label>
+                    <select id="workout-hr">
+                        <option value="">Select zone</option>
+                        <option value="1">Zone 1 (50-60%)</option>
+                        <option value="2">Zone 2 (60-70%)</option>
+                        <option value="3">Zone 3 (70-80%)</option>
+                        <option value="4">Zone 4 (80-90%)</option>
+                        <option value="5">Zone 5 (90-100%)</option>
+                    </select>
+                </div>
+                <div class="form-group conditional" id="muscle-group">
+                    <label>Muscle Groups</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" value="chest"> Chest</label>
+                        <label><input type="checkbox" value="biceps"> Biceps</label>
+                        <label><input type="checkbox" value="core"> Core</label>
+                        <label><input type="checkbox" value="pushups"> Pushups</label>
+                        <label><input type="checkbox" value="shoulders"> Shoulders</label>
+                        <label><input type="checkbox" value="back"> Back</label>
+                        <label><input type="checkbox" value="legs"> Legs</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="workout-notes" rows="2"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Submit</button>
+                    <button type="button" class="btn-secondary" data-modal="workout-modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Birthday Modal -->
+    <div id="birthday-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Birthday</h3>
+                <button class="close-btn" data-modal="birthday-modal">&times;</button>
+            </div>
+            <form id="birthday-form" class="modal-form">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="birthday-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="birthday-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Age (optional)</label>
+                    <input type="number" id="birthday-age" min="0" max="150">
+                </div>
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="birthday-notes" rows="3"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Submit</button>
+                    <button type="button" class="btn-secondary" data-modal="birthday-modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Detail Modals -->
+    <div id="workout-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Recent Workouts</h3>
+                <button class="close-btn" data-modal="workout-detail-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="workout-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="weight-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Weight History</h3>
+                <button class="close-btn" data-modal="weight-detail-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-days="7">7 Days</button>
+                    <button class="filter-btn" data-days="14">14 Days</button>
+                    <button class="filter-btn" data-days="30">30 Days</button>
+                    <button class="filter-btn" data-days="60">60 Days</button>
+                    <button class="filter-btn" data-days="all">All Time</button>
+                </div>
+                <canvas id="weight-detail-chart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="birthday-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Birthdays This Month</h3>
+                <button class="close-btn" data-modal="birthday-detail-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="birthday-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        // Global data storage
+        let workoutData = [];
+        let weightData = [];
+        let birthdayData = [];
+
+        // ===== CALCULATION FUNCTIONS (DEFINED FIRST) =====
+        function getMonday(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            return new Date(d.setDate(diff));
+        }
+
+        function getWorkoutsThisWeek() {
+            const today = new Date(); // Current date in 2025
+            const monday = getMonday(today);
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6); // Sunday is 6 days after Monday
+            
+            console.log(`\n=== WORKOUT WEEK CALCULATION ===`);
+            console.log(`Today: ${today.toDateString()}`);
+            console.log(`This week: ${monday.toDateString()} to ${sunday.toDateString()}`);
+            
+            // Set time to beginning/end of day for accurate comparison
+            const mondayStart = new Date(monday);
+            mondayStart.setHours(0, 0, 0, 0);
+            
+            const sundayEnd = new Date(sunday);
+            sundayEnd.setHours(23, 59, 59, 999);
+            
+            console.log(`Date range: ${mondayStart} to ${sundayEnd}`);
+            
+            const thisWeekWorkouts = workoutData.filter(workout => {
+                // Set workout date to beginning of day for comparison
+                const workoutDateStart = new Date(workout.date);
+                workoutDateStart.setHours(0, 0, 0, 0);
+                
+                const isThisWeek = workoutDateStart >= mondayStart && workoutDateStart <= sundayEnd;
+                
+                if (isThisWeek) {
+                    console.log(`✅ Found workout: ${workout.originalDate} (${workout.type}) - ${workout.date.toDateString()}`);
+                } else {
+                    // Also log near misses for debugging
+                    const daysDiff = Math.abs(workoutDateStart - mondayStart) / (1000 * 60 * 60 * 24);
+                    if (daysDiff <= 10) { // Within 10 days of this week
+                        console.log(`❌ Workout outside range: ${workout.originalDate} (${workout.type}) - ${workout.date.toDateString()}`);
+                    }
+                }
+                return isThisWeek;
+            });
+            
+            console.log(`\n=== WORKOUT SUMMARY ===`);
+            console.log(`Total workouts this week: ${thisWeekWorkouts.length}`);
+            
+            // Group by date to show multiple workouts per day
+            const workoutsByDate = {};
+            thisWeekWorkouts.forEach(workout => {
+                const dateKey = workout.originalDate;
+                if (!workoutsByDate[dateKey]) {
+                    workoutsByDate[dateKey] = [];
+                }
+                workoutsByDate[dateKey].push(workout);
+            });
+            
+            console.log('\nWorkouts by date:');
+            Object.keys(workoutsByDate).sort().forEach(date => {
+                const workouts = workoutsByDate[date];
+                console.log(`${date}: ${workouts.length} workout(s)`);
+                workouts.forEach((workout, i) => {
+                    console.log(`  ${i+1}. ${workout.type} ${workout.duration ? `(${workout.duration} min)` : ''}`);
+                });
+            });
+            
+            // Show all recent workouts for context
+            console.log('\nMost recent workouts (last 15):');
+            workoutData.slice(0, 15).forEach((workout, i) => {
+                const dayName = workout.date.toLocaleDateString('en-US', { weekday: 'short' });
+                const isThisWeek = thisWeekWorkouts.includes(workout);
+                const marker = isThisWeek ? '✅' : '  ';
+                console.log(`${marker} ${i+1}. ${workout.originalDate} (${dayName}) - ${workout.type}`);
+            });
+            
+            return thisWeekWorkouts.length;
+        }
+
+        function getWorkoutsLastWeek() {
+            const today = new Date();
+            const thisMonday = getMonday(today);
+            const lastMonday = new Date(thisMonday);
+            lastMonday.setDate(thisMonday.getDate() - 7);
+            
+            const lastSunday = new Date(lastMonday);
+            lastSunday.setDate(lastMonday.getDate() + 6);
+            
+            console.log(`Last week: ${lastMonday.toDateString()} to ${lastSunday.toDateString()}`);
+            
+            const lastWeekWorkouts = workoutData.filter(workout => {
+                return workout.date >= lastMonday && workout.date <= lastSunday;
+            });
+            
+            console.log(`Workouts last week: ${lastWeekWorkouts.length}`);
+            return lastWeekWorkouts.length;
+        }
+
+        function getAverageWorkoutsPerWeek() {
+            if (workoutData.length === 0) return 0;
+            
+            const dates = workoutData.map(w => w.date);
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            const weeks = Math.ceil((maxDate - minDate) / (7 * 24 * 60 * 60 * 1000)) || 1;
+            
+            return workoutData.length / weeks;
+        }
+
+        function getBirthdaysThisWeek() {
+            const today = new Date();
+            const oneWeekFromNow = new Date(today);
+            oneWeekFromNow.setDate(today.getDate() + 7);
+            
+            return birthdayData.filter(birthday => {
+                const thisYear = new Date(today.getFullYear(), birthday.date.getMonth(), birthday.date.getDate());
+                return thisYear >= today && thisYear <= oneWeekFromNow;
+            }).length;
+        }
+
+        function getBirthdaysThisMonth() {
+            const today = new Date();
+            
+            return birthdayData.filter(birthday => {
+                return birthday.date.getMonth() === today.getMonth();
+            }).length;
+        }
+
+        // ===== APP INITIALIZATION =====
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('App starting...');
+            initializeApp();
+            loadInitialData();
+        });
+
+        function initializeApp() {
+            console.log('Initializing app...');
+            // Set current date
+            document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            setupEventListeners();
+            setupTabNavigation();
+            console.log('App initialization complete');
+        }
+
+        function setupEventListeners() {
+            console.log('Setting up event listeners...');
+            
+            // Quick action buttons - open modals
+            document.getElementById('log-weight-btn').addEventListener('click', () => {
+                console.log('Weight button clicked');
+                openModal('weight-modal');
+            });
+            document.getElementById('log-workout-btn').addEventListener('click', () => {
+                console.log('Workout button clicked');
+                openModal('workout-modal');
+            });
+            document.getElementById('log-birthday-btn').addEventListener('click', () => {
+                console.log('Birthday button clicked');
+                openModal('birthday-modal');
+            });
+
+            // Card clicks - open detail modals
+            document.getElementById('workout-card').addEventListener('click', () => {
+                console.log('Workout card clicked');
+                openModal('workout-detail-modal');
+            });
+            document.getElementById('weight-card').addEventListener('click', () => {
+                console.log('Weight card clicked');
+                openModal('weight-detail-modal');
+            });
+            document.getElementById('birthday-card').addEventListener('click', () => {
+                console.log('Birthday card clicked');
+                openModal('birthday-detail-modal');
+            });
+
+            // Form submissions
+            document.getElementById('weight-form').addEventListener('submit', handleWeightSubmit);
+            document.getElementById('workout-form').addEventListener('submit', handleWorkoutSubmit);
+            document.getElementById('birthday-form').addEventListener('submit', handleBirthdaySubmit);
+
+            // Workout type conditional fields
+            document.getElementById('workout-type').addEventListener('change', handleWorkoutTypeChange);
+
+            // Modal close functionality
+            document.querySelectorAll('.close-btn, .btn-secondary').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const modalId = this.dataset.modal;
+                    if (modalId) {
+                        console.log('Closing modal:', modalId);
+                        closeModal(modalId);
+                    }
+                });
+            });
+
+            // Close modal when clicking outside
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        console.log('Closing modal by clicking outside:', this.id);
+                        closeModal(this.id);
+                    }
+                });
+            });
+
+            // Weight detail chart filters
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    updateWeightDetailChart(this.dataset.days);
+                });
+            });
+
+            // Refresh data button
+            document.getElementById('refresh-data-btn').addEventListener('click', () => {
+                loadInitialData();
+            });
+            
+            console.log('Event listeners setup complete');
+        }
+
+        function setupTabNavigation() {
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tabName = this.dataset.tab;
+                    
+                    // Update nav buttons
+                    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Update tab content
+                    document.querySelectorAll('.tab-content').forEach(content => {
+                        content.classList.remove('active');
+                    });
+                    document.getElementById(tabName).classList.add('active');
+                });
+            });
+        }
+
+        // Data loading functions
+        async function loadInitialData() {
+            showLoading(true);
+            console.log('Starting to load CSV data...');
+            
+            try {
+                // Try to load each CSV file
+                await loadCSVData('Clean_Weight_Log.csv', 'weight');
+                await loadCSVData('Clean_Workout_Log.csv', 'workout');
+                await loadCSVData('Clean_Birthdays.csv', 'birthday');
+                
+                updateDashboard();
+                updateDataStatus();
+                
+                // Test that functions are defined
+                console.log('Testing function definitions:');
+                console.log('getWorkoutsThisWeek defined:', typeof getWorkoutsThisWeek);
+                console.log('getAverageWorkoutsPerWeek defined:', typeof getAverageWorkoutsPerWeek);
+                console.log('getBirthdaysThisWeek defined:', typeof getBirthdaysThisWeek);
+                
+                showToast('Data loaded successfully!', 'success');
+            } catch (error) {
+                console.error('Error loading initial data:', error);
+                showToast('Error loading CSV files. Check console for details.', 'error');
+                updateDataStatus('Error loading data');
+            }
+            
+            showLoading(false);
+        }
+
+        async function loadCSVData(filename, type) {
+            try {
+                console.log(`Loading ${filename}...`);
+                
+                const response = await fetch(filename);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const csvText = await response.text();
+                console.log(`${filename} loaded. Length: ${csvText.length} characters`);
+                
+                // Parse CSV manually (simple approach)
+                const lines = csvText.trim().split('\n');
+                const headers = lines[0].split(',').map(h => h.trim());
+                console.log(`${filename} headers:`, headers);
+                
+                const rows = lines.slice(1).map(line => {
+                    const values = line.split(',').map(v => v.trim());
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index] || '';
+                    });
+                    return row;
+                });
+                
+                console.log(`${filename} parsed ${rows.length} rows`);
+                
+                // Process data based on type
+                switch (type) {
+                    case 'weight':
+                        weightData = rows.map(row => ({
+                            date: parseDate(row.date),
+                            weight: parseFloat(row.weight) || 0,
+                            bodyFat: parseFloat(row.body_fat) || null,
+                            notes: row.notes || '',
+                            originalDate: row.date // Keep original for debugging
+                        })).filter(row => row.weight > 0 && row.date !== null);
+                        
+                        // Sort by date (newest first) - CRITICAL FIX
+                        weightData.sort((a, b) => b.date - a.date);
+                        
+                        console.log(`Processed ${weightData.length} weight entries`);
+                        console.log('Most recent weight entries (after sorting):');
+                        weightData.slice(0, 5).forEach((entry, i) => {
+                            console.log(`${i+1}. ${entry.originalDate} -> ${entry.weight} lbs (${entry.date.toDateString()})`);
+                        });
+                        
+                        // Check if we have the expected 177 lb entry
+                        const july22Entry = weightData.find(entry => 
+                            entry.originalDate === '07/22/2025'
+                        );
+                        if (july22Entry) {
+                            console.log('✅ Found July 22, 2025 entry:', july22Entry);
+                        } else {
+                            console.log('❌ July 22, 2025 entry not found in processed data');
+                        }
+                        break;
+                        
+                    case 'workout':
+                        workoutData = rows.map(row => ({
+                            date: parseDate(row.date),
+                            type: row.type || '',
+                            duration: row.duration || '',
+                            distance: parseFloat(row.distance) || null,
+                            hrZone: parseFloat(row['hr zone']) || null,
+                            notes: row.notes || '',
+                            originalDate: row.date // Keep original for debugging
+                        })).filter(row => row.type && row.date);
+                        
+                        // Sort by date (newest first) - CRITICAL FIX
+                        workoutData.sort((a, b) => b.date - a.date);
+                        
+                        console.log(`Processed ${workoutData.length} workout entries`);
+                        console.log('Most recent workout entries:');
+                        workoutData.slice(0, 5).forEach((entry, i) => {
+                            console.log(`${i+1}. ${entry.originalDate} -> ${entry.type}`);
+                        });
+                        break;
+                        
+                    case 'birthday':
+                        birthdayData = rows.map(row => ({
+                            name: row.name || '',
+                            date: parseDate(row.date),
+                            age: parseFloat(row.age) || null,
+                            notes: row.notes || '',
+                            originalDate: row.date
+                        })).filter(row => row.name && row.date);
+                        
+                        console.log(`Processed ${birthdayData.length} birthday entries`);
+                        break;
+                }
+                
+            } catch (error) {
+                console.error(`Error loading ${filename}:`, error);
+                throw error;
+            }
+        }
+
+        function parseDate(dateStr) {
+            // Handle MM/DD/YYYY format
+            if (dateStr && dateStr.includes('/')) {
+                const [month, day, year] = dateStr.split('/');
+                const parsedDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                
+                // Debug logging for recent dates
+                if (dateStr.includes('2025') && dateStr.includes('07/')) {
+                    console.log(`Parsing 2025 July date: ${dateStr} -> ${parsedDate.toDateString()}`);
+                }
+                
+                // Validate the date
+                if (isNaN(parsedDate.getTime())) {
+                    console.warn(`Invalid date: ${dateStr}`);
+                    return null;
+                }
+                
+                return parsedDate;
+            }
+            return new Date(dateStr);
+        }
+
+        // Dashboard update functions
+        function updateDashboard() {
+            console.log('Updating dashboard...');
+            try {
+                updateWorkoutCard();
+                updateWeightCard();
+                updateBirthdayCard();
+                console.log('Dashboard updated successfully');
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+                throw error;
+            }
+        }
+
+        function updateWorkoutCard() {
+            console.log('Updating workout card...');
+            try {
+                const thisWeek = getWorkoutsThisWeek();
+                const avgWorkouts = getAverageWorkoutsPerWeek();
+                const lastWeek = getWorkoutsLastWeek();
+                
+                document.getElementById('workouts-this-week').textContent = thisWeek;
+                document.getElementById('workouts-avg').textContent = avgWorkouts.toFixed(1);
+                
+                const trend = thisWeek - lastWeek;
+                const trendElement = document.getElementById('workout-trend');
+                if (trend > 0) {
+                    trendElement.textContent = `+${trend} vs last week`;
+                    trendElement.className = 'trend positive';
+                } else if (trend < 0) {
+                    trendElement.textContent = `${trend} vs last week`;
+                    trendElement.className = 'trend negative';
+                } else {
+                    trendElement.textContent = 'Same as last week';
+                    trendElement.className = 'trend';
+                }
+                console.log(`Workout card: ${thisWeek} this week, ${avgWorkouts.toFixed(1)} avg`);
+            } catch (error) {
+                console.error('Error in updateWorkoutCard:', error);
+                // Set safe defaults
+                document.getElementById('workouts-this-week').textContent = workoutData.length;
+                document.getElementById('workouts-avg').textContent = '0.0';
+                document.getElementById('workout-trend').textContent = 'Total workouts';
+            }
+        }
+
+        function updateWeightCard() {
+            console.log('Updating weight card...');
+            try {
+                if (weightData.length === 0) {
+                    document.getElementById('current-weight').textContent = '--';
+                    document.getElementById('weight-lost').textContent = '0';
+                    document.getElementById('weight-trend').textContent = '--';
+                    return;
+                }
+                
+                // Get the most recent weight (first in sorted array)
+                const currentWeight = weightData[0].weight;
+                const currentDate = weightData[0].originalDate;
+                
+                // Find max weight across ALL years for weight lost calculation
+                const maxWeight = Math.max(...weightData.map(w => w.weight));
+                const weightLost = maxWeight - currentWeight;
+                
+                console.log(`Current weight: ${currentWeight} lbs on ${currentDate}`);
+                console.log(`Max weight ever: ${maxWeight} lbs`);
+                console.log(`Total weight lost: ${weightLost.toFixed(1)} lbs`);
+                
+                document.getElementById('current-weight').textContent = `${currentWeight} lbs`;
+                document.getElementById('weight-lost').textContent = weightLost.toFixed(1);
+                
+                // Trend based on recent entries (last 3-5 entries)
+                if (weightData.length >= 3) {
+                    const recent = weightData.slice(0, 5).map(w => w.weight);
+                    const trend = recent[0] - recent[recent.length - 1];
+                    const trendElement = document.getElementById('weight-trend');
+                    
+                    console.log(`Recent weights: ${recent.join(', ')}`);
+                    console.log(`Trend calculation: ${recent[0]} - ${recent[recent.length - 1]} = ${trend.toFixed(1)}`);
+                    
+                    if (trend < -1) {
+                        trendElement.textContent = `Trending down (-${Math.abs(trend).toFixed(1)} lbs recently)`;
+                        trendElement.className = 'trend positive';
+                    } else if (trend > 1) {
+                        trendElement.textContent = `Trending up (+${trend.toFixed(1)} lbs recently)`;
+                        trendElement.className = 'trend negative';
+                    } else {
+                        trendElement.textContent = 'Stable';
+                        trendElement.className = 'trend';
+                    }
+                } else {
+                    document.getElementById('weight-trend').textContent = 'Not enough data';
+                }
+                
+                console.log(`Weight card updated successfully`);
+            } catch (error) {
+                console.error('Error in updateWeightCard:', error);
+                document.getElementById('current-weight').textContent = 'Error';
+                document.getElementById('weight-lost').textContent = '0';
+                document.getElementById('weight-trend').textContent = '--';
+            }
+        }
+
+        function updateBirthdayCard() {
+            console.log('Updating birthday card...');
+            try {
+                const thisWeek = getBirthdaysThisWeek();
+                const thisMonth = getBirthdaysThisMonth();
+                
+                document.getElementById('birthdays-this-week').textContent = thisWeek;
+                document.getElementById('birthdays-this-month').textContent = thisMonth;
+                console.log(`Birthday card: ${thisWeek} this week, ${thisMonth} this month`);
+            } catch (error) {
+                console.error('Error in updateBirthdayCard:', error);
+                document.getElementById('birthdays-this-week').textContent = '0';
+                document.getElementById('birthdays-this-month').textContent = '0';
+            }
+        }
+
+        function updateDataStatus(error = null) {
+            const statusDiv = document.getElementById('data-status');
+            if (error) {
+                statusDiv.innerHTML = `<p style="color: #ef4444;">❌ ${error}</p>`;
+            } else {
+                statusDiv.innerHTML = `
+                    <p>✅ Weight entries: ${weightData.length}</p>
+                    <p>✅ Workout entries: ${workoutData.length}</p>
+                    <p>✅ Birthday entries: ${birthdayData.length}</p>
+                `;
+            }
+        }
+
+        // Utility functions for calculations
+        function getWorkoutsLastWeek() {
+            const today = new Date();
+            const lastMonday = new Date(getMonday(today));
+            lastMonday.setDate(lastMonday.getDate() - 7);
+            
+            const lastSunday = new Date(lastMonday);
+            lastSunday.setDate(lastSunday.getDate() + 6);
+            
+            return workoutData.filter(workout => {
+                return workout.date >= lastMonday && workout.date <= lastSunday;
+            }).length;
+        }
+
+        function getAverageWorkoutsPerWeek() {
+            if (workoutData.length === 0) return 0;
+            
+            const dates = workoutData.map(w => w.date);
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            const weeks = Math.ceil((maxDate - minDate) / (7 * 24 * 60 * 60 * 1000)) || 1;
+            
+            return workoutData.length / weeks;
+        }
+
+        function getBirthdaysThisWeek() {
+            const today = new Date();
+            const oneWeekFromNow = new Date(today);
+            oneWeekFromNow.setDate(today.getDate() + 7);
+            
+            return birthdayData.filter(birthday => {
+                const thisYear = new Date(today.getFullYear(), birthday.date.getMonth(), birthday.date.getDate());
+                return thisYear >= today && thisYear <= oneWeekFromNow;
+            }).length;
+        }
+
+        function getBirthdaysThisMonth() {
+            const today = new Date();
+            
+            return birthdayData.filter(birthday => {
+                return birthday.date.getMonth() === today.getMonth();
+            }).length;
+        }
+
+        function getMonday(date) {
+            const d = new Date(date);
+            const day = d.getDay();
+            const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Adjust when day is Sunday
+            return new Date(d.setDate(diff));
+        }
+
+        // Utility functions
+        function showLoading(show) {
+            const loading = document.getElementById('loading');
+            if (show) {
+                loading.classList.add('active');
+            } else {
+                loading.classList.remove('active');
+            }
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            
+            container.appendChild(toast);
+            
+            // Trigger animation
+            setTimeout(() => toast.classList.add('show'), 100);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (container.contains(toast)) {
+                        container.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>outsThisWeek() {
+            const today = new Date();
+            const monday = getMonday(today);
+            
+            return workoutData.filter(workout => {
+                return workout.date >= monday && workout.date <= today;
+            }).length;
+        }
+
+        function getWork
