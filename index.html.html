@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-tab="dashboard">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-btn" data-tab="insights">
+                <i class="fas fa-chart-line"></i>
+                <span>Insights</span>
+            </button>
+            <button class="nav-btn" data-tab="settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </button>
+        </nav>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <header class="header">
+                <h1>Dashboard</h1>
+                <div class="date">
+                    <i class="fas fa-calendar"></i>
+                    <span id="current-date"></span>
+                </div>
+            </header>
+
+            <!-- Quick Actions -->
+            <section class="quick-actions">
+                <h2>Quick Actions</h2>
+                <div class="action-buttons">
+                    <button class="action-btn" id="log-weight-btn">
+                        <i class="fas fa-weight"></i>
+                        <span>Log Weight</span>
+                    </button>
+                    <button class="action-btn" id="log-workout-btn">
+                        <i class="fas fa-dumbbell"></i>
+                        <span>Log Workout</span>
+                    </button>
+                    <button class="action-btn" id="log-birthday-btn">
+                        <i class="fas fa-birthday-cake"></i>
+                        <span>Add Birthday</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- Summary Cards -->
+            <section class="summary-cards">
+                <div class="card" id="workout-card">
+                    <div class="card-icon">
+                        <i class="fas fa-dumbbell"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Workouts This Week</h3>
+                        <div class="card-stats">
+                            <span class="main-stat" id="workouts-this-week">0</span>
+                            <div class="sub-stats">
+                                <span>Avg: <span id="workouts-avg">0</span>/week</span>
+                                <span class="trend" id="workout-trend">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="weight-card">
+                    <div class="card-icon">
+                        <i class="fas fa-weight"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Current Weight</h3>
+                        <div class="card-stats">
+                            <span class="main-stat" id="current-weight">--</span>
+                            <div class="sub-stats">
+                                <span>Lost: <span id="weight-lost">0</span> lbs</span>
+                                <span class="trend" id="weight-trend">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="birthday-card">
+                    <div class="card-icon">
+                        <i class="fas fa-birthday-cake"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Birthdays This Week</h3>
+                        <div class="card-stats">
+                            <span class="main-stat" id="birthdays-this-week">0</span>
+                            <div class="sub-stats">
+                                <span>This month: <span id="birthdays-this-month">0</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Insights Tab -->
+        <div id="insights" class="tab-content">
+            <header class="header">
+                <h1>Insights</h1>
+            </header>
+            
+            <section class="insights-section">
+                <div class="insights-grid">
+                    <div class="insight-card">
+                        <h3>Workout Trends (Last 8 Weeks)</h3>
+                        <canvas id="workout-chart" width="400" height="200"></canvas>
+                        <div class="insight-summary" id="workout-insights"></div>
+                    </div>
+                    
+                    <div class="insight-card">
+                        <h3>Weight Progress (Last 30 Entries)</h3>
+                        <canvas id="weight-chart" width="400" height="200"></canvas>
+                        <div class="insight-summary" id="weight-insights"></div>
+                    </div>
+                </div>
+                
+                <!-- Chat GPT Integration Placeholder -->
+                <div class="chat-section">
+                    <h3>Ask About Your Data</h3>
+                    <div class="chat-container">
+                        <div class="chat-messages" id="chat-messages">
+                            <div class="chat-message bot">
+                                <strong>Assistant:</strong> I can help analyze your fitness data! Ask me about your workout patterns, weight trends, or any insights you'd like to explore.
+                            </div>
+                        </div>
+                        <div class="chat-input-container">
+                            <input type="text" id="chat-input" placeholder="Ask about your fitness data...">
+                            <button id="chat-send"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+            <header class="header">
+                <h1>Settings</h1>
+            </header>
+            
+            <section class="settings-section">
+                <div class="setting-group">
+                    <h3>Data Management</h3>
+                    <div class="data-actions">
+                        <button id="import-data-btn" class="btn-primary">
+                            <i class="fas fa-upload"></i> Import CSV Data
+                        </button>
+                        <input type="file" id="csv-file-input" accept=".csv" style="display: none;" multiple>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <h3>Export Data</h3>
+                    <div class="export-form">
+                        <select id="export-type">
+                            <option value="">Select data type</option>
+                            <option value="workouts">Workouts</option>
+                            <option value="weight">Weight</option>
+                            <option value="birthdays">Birthdays</option>
+                            <option value="all">All Data</option>
+                        </select>
+                        <select id="export-format">
+                            <option value="">Select format</option>
+                            <option value="csv">CSV</option>
+                            <option value="json">JSON</option>
+                        </select>
+                        <div class="export-buttons">
+                            <button id="export-submit" class="btn-primary">Export</button>
+                            <button id="export-cancel" class="btn-secondary">Clear</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <h3>Backup & Restore</h3>
+                    <div class="backup-actions">
+                        <button id="backup-all-btn" class="btn-primary">
+                            <i class="fas fa-download"></i> Backup All Data
+                        </button>
+                        <button id="restore-btn" class="btn-secondary">
+                            <i class="fas fa-upload"></i> Restore from Backup
+                        </button>
+                        <input type="file" id="backup-file-input" accept=".json" style="display: none;">
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <h3>Notifications</h3>
+                    <div class="notification-settings">
+                        <div class="setting-item">
+                            <label class="switch">
+                                <input type="checkbox" id="weekly-reminders" checked>
+                                <span class="slider"></span>
+                            </label>
+                            <span>Weekly Summary Reminders</span>
+                        </div>
+                        <div class="setting-item">
+                            <label class="switch">
+                                <input type="checkbox" id="birthday-alerts" checked>
+                                <span class="slider"></span>
+                            </label>
+                            <span>Birthday Alerts</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Weight Modal -->
+    <div id="weight-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Log Weight</h3>
+                <button class="close-btn" data-modal="weight-modal">&times;</button>
+            </div>
+            <form id="weight-form" class="modal-form">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="weight-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Weight (lbs)</label>
+                    <input type="number" id="weight-value" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Body Fat % (optional)</label>
+                    <input type="number" id="body-fat" step="0.1" min="0" max="50">
+                </div>
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="weight-notes" rows="2"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Submit</button>
+                    <button type="button" class="btn-secondary" data-modal="weight-modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Workout Modal -->
+    <div id="workout-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Log Workout</h3>
+                <button class="close-btn" data-modal="workout-modal">&times;</button>
+            </div>
+            <form id="workout-form" class="modal-form">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="workout-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Workout Type</label>
+                    <select id="workout-type" required>
+                        <option value="">Select type</option>
+                        <option value="walk">Walk</option>
+                        <option value="lift">Lift</option>
+                        <option value="run">Run</option>
+                        <option value="tennis">Tennis</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group conditional" id="duration-group">
+                    <label>Duration (minutes)</label>
+                    <input type="number" id="workout-duration" min="1">
+                </div>
+                <div class="form-group conditional" id="distance-group">
+                    <label>Distance (miles)</label>
+                    <input type="number" id="workout-distance" step="0.1" min="0.1">
+                </div>
+                <div class="form-group conditional" id="hr-group">
+                    <label>Heart Rate Zone</label>
+                    <select id="workout-hr">
+                        <option value="">Select zone</option>
+                        <option value="1">Zone 1 (50-60%)</option>
+                        <option value="2">Zone 2 (60-70%)</option>
+                        <option value="3">Zone 3 (70-80%)</option>
+                        <option value="4">Zone 4 (80-90%)</option>
+                        <option value="5">Zone 5 (90-100%)</option>
+                    </select>
+                </div>
+                <div class="form-group conditional" id="muscle-group">
+                    <label>Muscle Groups</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" value="chest"> Chest</label>
+                        <label><input type="checkbox" value="biceps"> Biceps</label>
+                        <label><input type="checkbox" value="core"> Core</label>
+                        <label><input type="checkbox" value="pushups"> Pushups</label>
+                        <label><input type="checkbox" value="shoulders"> Shoulders</label>
+                        <label><input type="checkbox" value="back"> Back</label>
+                        <label><input type="checkbox" value="legs"> Legs</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="workout-notes" rows="2"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Submit</button>
+                    <button type="button" class="btn-secondary" data-modal="workout-modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Birthday Modal -->
+    <div id="birthday-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Birthday</h3>
+                <button class="close-btn" data-modal="birthday-modal">&times;</button>
+            </div>
+            <form id="birthday-form" class="modal-form">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="birthday-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="birthday-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Age (optional)</label>
+                    <input type="number" id="birthday-age" min="0" max="150">
+                </div>
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="birthday-notes" rows="3"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Submit</button>
+                    <button type="button" class="btn-secondary" data-modal="birthday-modal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Detail Modals -->
+    <div id="workout-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Recent Workouts</h3>
+                <button class="close-btn" data-modal="workout-detail-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="workout-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="weight-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Weight History</h3>
+                <button class="close-btn" data-modal="weight-detail-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-days="7">7 Days</button>
+                    <button class="filter-btn" data-days="14">14 Days</button>
+                    <button class="filter-btn" data-days="30">30 Days</button>
+                    <button class="filter-btn" data-days="60">60 Days</button>
+                    <button class="filter-btn" data-days="all">All Time</button>
+                </div>
+                <canvas id="weight-detail-chart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="birthday-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Birthdays This Month</h3>
+                <button class="close-btn" data-modal="birthday-detail-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="birthday-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
