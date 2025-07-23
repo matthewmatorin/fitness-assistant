@@ -1403,128 +1403,112 @@
         }
 
         // Data loading functions
-        async function loadInitialData() {
-            showLoading(true);
-            
-            try {
-                // Try to load CSV data if files are available
-                await Promise.all([
-                    loadCSVData('Clean_Weight_Log.csv', 'weight'),
-                    loadCSVData('Clean_Workout_Log.csv', 'workout'),
-                    loadCSVData('Clean_Birthdays.csv', 'birthday')
-                ]);
-                
-                updateDashboard();
-                showToast('Data loaded successfully!', 'success');
-            } catch (error) {
-                console.error('Error loading initial data:', error);
-                showToast('Using demo data. Upload your CSV files in Settings.', 'warning');
-                loadDemoData();
-                updateDashboard();
-            }
-            
-            showLoading(false);
-        }
+        // Replace the loadCSVData function in your JavaScript with this corrected version:
 
-        async function loadCSVData(filename, type) {
-            try {
-                const fileContent = await window.fs.readFile(filename, { encoding: 'utf8' });
-                const lines = fileContent.trim().split('\n');
-                const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+async function loadCSVData(filename, type) {
+    try {
+        console.log('Attempting to load:', filename);
+        
+        // Use fetch to load CSV files from the same directory
+        const response = await fetch(filename);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const fileContent = await response.text();
+        console.log('File loaded successfully:', filename);
+        console.log('Content preview:', fileContent.substring(0, 200));
+        
+        const lines = fileContent.trim().split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+        
+        console.log('Headers found:', headers);
+        console.log('Number of data rows:', lines.length - 1);
+        
+        const data = lines.slice(1).map(line => {
+            const values = parseCSVLine(line);
+            const row = {};
+            headers.forEach((header, index) => {
+                row[header] = values[index]?.trim().replace(/"/g, '') || '';
+            });
+            return row;
+        });
+        
+        switch (type) {
+            case 'weight':
+                weightData = data.map(row => ({
+                    date: row.date,
+                    weight: parseFloat(row.weight) || 0,
+                    bodyFat: parseFloat(row.body_fat || row['body fat']) || null,
+                    notes: row.notes || ''
+                })).filter(row => row.weight > 0);
+                console.log('Processed weight data:', weightData.length, 'entries');
+                break;
                 
-                const data = lines.slice(1).map(line => {
-                    const values = parseCSVLine(line);
-                    const row = {};
-                    headers.forEach((header, index) => {
-                        row[header] = values[index]?.trim() || '';
-                    });
-                    return row;
-                });
+            case 'workout':
+                workoutData = data.map(row => ({
+                    date: row.date,
+                    type: row.type,
+                    duration: row.duration,
+                    distance: parseFloat(row.distance) || null,
+                    hrZone: parseFloat(row['hr zone'] || row.hrzone || row['heart rate']) || null,
+                    notes: row.notes || '',
+                    muscleGroups: []
+                })).filter(row => row.type);
+                console.log('Processed workout data:', workoutData.length, 'entries');
+                break;
                 
-                switch (type) {
-                    case 'weight':
-                        weightData = data.map(row => ({
-                            date: row.date,
-                            weight: parseFloat(row.weight) || 0,
-                            bodyFat: parseFloat(row.body_fat) || null,
-                            notes: row.notes || ''
-                        })).filter(row => row.weight > 0);
-                        break;
-                        
-                    case 'workout':
-                        workoutData = data.map(row => ({
-                            date: row.date,
-                            type: row.type,
-                            duration: row.duration,
-                            distance: parseFloat(row.distance) || null,
-                            hrZone: parseFloat(row['hr zone']) || null,
-                            notes: row.notes || '',
-                            muscleGroups: row.muscle_groups ? row.muscle_groups.split(',') : []
-                        })).filter(row => row.type);
-                        break;
-                        
-                    case 'birthday':
-                        birthdayData = data.map(row => ({
-                            name: row.name,
-                            date: row.date,
-                            age: parseFloat(row.age) || null,
-                            notes: row.notes || ''
-                        })).filter(row => row.name);
-                        break;
-                }
-                
-                console.log(`Loaded ${type} data:`, type === 'weight' ? weightData : type === 'workout' ? workoutData : birthdayData);
-            } catch (error) {
-                console.error(`Error loading ${filename}:`, error);
-                throw error;
+            case 'birthday':
+                birthdayData = data.map(row => ({
+                    name: row.name,
+                    date: row.date,
+                    age: parseFloat(row.age) || null,
+                    notes: row.notes || ''
+                })).filter(row => row.name);
+                console.log('Processed birthday data:', birthdayData.length, 'entries');
+                break;
+        }
+        
+    } catch (error) {
+        console.error(`Error loading ${filename}:`, error);
+        throw error;
+    }
+}
+
+// Also update the handleCSVImport function to not use window.fs:
+async function handleCSVImport(e) {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    showLoading(true);
+    
+    try {
+        for (const file of files) {
+            const content = await readFileContent(file);
+            const filename = file.name.toLowerCase();
+            
+            console.log('Processing uploaded file:', filename);
+            
+            if (filename.includes('weight')) {
+                await loadCSVFromContent(content, 'weight');
+            } else if (filename.includes('workout')) {
+                await loadCSVFromContent(content, 'workout');
+            } else if (filename.includes('birthday')) {
+                await loadCSVFromContent(content, 'birthday');
             }
         }
-
-        function parseCSVLine(line) {
-            const result = [];
-            let current = '';
-            let inQuotes = false;
-            
-            for (let i = 0; i < line.length; i++) {
-                const char = line[i];
-                
-                if (char === '"') {
-                    inQuotes = !inQuotes;
-                } else if (char === ',' && !inQuotes) {
-                    result.push(current);
-                    current = '';
-                } else {
-                    current += char;
-                }
-            }
-            
-            result.push(current);
-            return result;
-        }
-
-        function loadDemoData() {
-            // Demo weight data
-            const today = new Date();
-            weightData = [
-                { date: today.toISOString().split('T')[0], weight: 180.5, bodyFat: 15.2, notes: 'Morning weigh-in' },
-                { date: new Date(today.getTime() - 86400000).toISOString().split('T')[0], weight: 181.0, bodyFat: 15.3, notes: '' },
-                { date: new Date(today.getTime() - 172800000).toISOString().split('T')[0], weight: 180.8, bodyFat: null, notes: '' }
-            ];
-            
-            // Demo workout data
-            workoutData = [
-                { date: today.toISOString().split('T')[0], type: 'run', duration: '30', distance: 3.2, hrZone: 3, notes: 'Morning run', muscleGroups: [] },
-                { date: new Date(today.getTime() - 86400000).toISOString().split('T')[0], type: 'lift', duration: '45', distance: null, hrZone: null, notes: 'Chest and arms', muscleGroups: ['chest', 'biceps'] },
-                { date: new Date(today.getTime() - 172800000).toISOString().split('T')[0], type: 'walk', duration: '25', distance: null, hrZone: 2, notes: 'Easy recovery walk', muscleGroups: [] }
-            ];
-            
-            // Demo birthday data
-            const nextWeek = new Date(today.getTime() + 604800000);
-            birthdayData = [
-                { name: 'John Doe', date: nextWeek.toISOString().split('T')[0], age: 30, notes: 'Best friend' },
-                { name: 'Jane Smith', date: new Date(today.getFullYear(), today.getMonth() + 1, 5).toISOString().split('T')[0], age: 28, notes: 'Colleague' }
-            ];
-        }
+        
+        updateDashboard();
+        showToast(`Imported ${files.length} file(s) successfully!`, 'success');
+    } catch (error) {
+        console.error('Import error:', error);
+        showToast('Error importing files', 'error');
+    }
+    
+    showLoading(false);
+    e.target.value = ''; // Reset file input
+}
 
         // Dashboard update functions
         function updateDashboard() {
@@ -2130,36 +2114,112 @@
             window.URL.revokeObjectURL(url);
         }
 
-        async function handleCSVImport(e) {
-            const files = Array.from(e.target.files);
-            if (files.length === 0) return;
-            
-            showLoading(true);
-            
-            try {
-                for (const file of files) {
-                    const content = await readFileContent(file);
-                    const filename = file.name.toLowerCase();
-                    
-                    if (filename.includes('weight')) {
-                        await loadCSVFromContent(content, 'weight');
-                    } else if (filename.includes('workout')) {
-                        await loadCSVFromContent(content, 'workout');
-                    } else if (filename.includes('birthday')) {
-                        await loadCSVFromContent(content, 'birthday');
-                    }
-                }
-                
-                updateDashboard();
-                showToast(`Imported ${files.length} file(s) successfully!`, 'success');
-            } catch (error) {
-                console.error('Import error:', error);
-                showToast('Error importing files', 'error');
-            }
-            
-            showLoading(false);
-            e.target.value = ''; // Reset file input
+        // Replace the loadCSVData function in your JavaScript with this corrected version:
+
+async function loadCSVData(filename, type) {
+    try {
+        console.log('Attempting to load:', filename);
+        
+        // Use fetch to load CSV files from the same directory
+        const response = await fetch(filename);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
+        const fileContent = await response.text();
+        console.log('File loaded successfully:', filename);
+        console.log('Content preview:', fileContent.substring(0, 200));
+        
+        const lines = fileContent.trim().split('\n');
+        const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+        
+        console.log('Headers found:', headers);
+        console.log('Number of data rows:', lines.length - 1);
+        
+        const data = lines.slice(1).map(line => {
+            const values = parseCSVLine(line);
+            const row = {};
+            headers.forEach((header, index) => {
+                row[header] = values[index]?.trim().replace(/"/g, '') || '';
+            });
+            return row;
+        });
+        
+        switch (type) {
+            case 'weight':
+                weightData = data.map(row => ({
+                    date: row.date,
+                    weight: parseFloat(row.weight) || 0,
+                    bodyFat: parseFloat(row.body_fat || row['body fat']) || null,
+                    notes: row.notes || ''
+                })).filter(row => row.weight > 0);
+                console.log('Processed weight data:', weightData.length, 'entries');
+                break;
+                
+            case 'workout':
+                workoutData = data.map(row => ({
+                    date: row.date,
+                    type: row.type,
+                    duration: row.duration,
+                    distance: parseFloat(row.distance) || null,
+                    hrZone: parseFloat(row['hr zone'] || row.hrzone || row['heart rate']) || null,
+                    notes: row.notes || '',
+                    muscleGroups: []
+                })).filter(row => row.type);
+                console.log('Processed workout data:', workoutData.length, 'entries');
+                break;
+                
+            case 'birthday':
+                birthdayData = data.map(row => ({
+                    name: row.name,
+                    date: row.date,
+                    age: parseFloat(row.age) || null,
+                    notes: row.notes || ''
+                })).filter(row => row.name);
+                console.log('Processed birthday data:', birthdayData.length, 'entries');
+                break;
+        }
+        
+    } catch (error) {
+        console.error(`Error loading ${filename}:`, error);
+        throw error;
+    }
+}
+
+// Also update the handleCSVImport function to not use window.fs:
+async function handleCSVImport(e) {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    showLoading(true);
+    
+    try {
+        for (const file of files) {
+            const content = await readFileContent(file);
+            const filename = file.name.toLowerCase();
+            
+            console.log('Processing uploaded file:', filename);
+            
+            if (filename.includes('weight')) {
+                await loadCSVFromContent(content, 'weight');
+            } else if (filename.includes('workout')) {
+                await loadCSVFromContent(content, 'workout');
+            } else if (filename.includes('birthday')) {
+                await loadCSVFromContent(content, 'birthday');
+            }
+        }
+        
+        updateDashboard();
+        showToast(`Imported ${files.length} file(s) successfully!`, 'success');
+    } catch (error) {
+        console.error('Import error:', error);
+        showToast('Error importing files', 'error');
+    }
+    
+    showLoading(false);
+    e.target.value = ''; // Reset file input
+}
 
         function readFileContent(file) {
             return new Promise((resolve, reject) => {
