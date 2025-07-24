@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Formatter for Supabase</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            width: 100%;
+        }
+        
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        
+        .btn:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+        
+        .log {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .success {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        .error {
+            color: #ef4444;
+            font-weight: 600;
+        }
+        
+        .file-list {
+            margin: 20px 0;
+        }
+        
+        .file-item {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .download-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .download-btn:hover {
+            background: #059669;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 CSV Formatter for Supabase</h1>
+        
+        <div class="status">
+            <h3>This tool will:</h3>
+            <ul>
+                <li>✅ Load your existing CSV files from GitHub</li>
+                <li>✅ Convert dates to YYYY-MM-DD format</li>
+                <li>✅ Clean up data formatting</li>
+                <li>✅ Generate downloadable CSVs for Supabase</li>
+            </ul>
+        </div>
+        
+        <button class="btn" onclick="formatCSVs()">
+            Format CSVs for Supabase
+        </button>
+        
+        <div class="log" id="log"></div>
+        
+        <div class="file-list" id="file-list" style="display: none;">
+            <h3>📁 Download Formatted CSVs:</h3>
+        </div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = `[${timestamp}] ${message}`;
+            
+            const colorClass = type === 'error' ? 'error' : type === 'success' ? 'success' : '';
+            logElement.innerHTML += `<div class="${colorClass}">${entry}</div>`;
+            logElement.scrollTop = logElement.scrollHeight;
+            logElement.style.display = 'block';
+        }
+        
+        function parseCSVLine(line) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            
+            result.push(current);
+            return result;
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr || dateStr === 'NULL' || dateStr === '') return '';
+            
+            // Handle MM/DD/YYYY format
+            if (dateStr.includes('/')) {
+                const [month, day, year] = dateStr.split('/');
+                if (month && day && year) {
+                    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                }
+            }
+            
+            return dateStr; // Return as-is if already formatted
+        }
+        
+        function downloadCSV(data, filename) {
+            const csvContent = data.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            
+            const fileListDiv = document.getElementById('file-list');
+            fileListDiv.style.display = 'block';
+            
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+            fileItem.innerHTML = `
+                <span><strong>${filename}</strong> - Ready for Supabase upload</span>
+                <a href="${url}" download="${filename}" class="download-btn">Download</a>
+            `;
+            
+            fileListDiv.appendChild(fileItem);
+        }
+        
+        async function loadAndFormatCSV(filename, formatter) {
+            try {
+                log(`📄 Loading ${filename}...`);
+                
+                const response = await fetch(filename);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const csvText = await response.text();
+                const lines = csvText.trim().split('\n');
+                const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+                
+                log(`✅ Loaded ${lines.length - 1} rows from ${filename}`);
+                
+                const formattedLines = [headers.join(',')]; // Add header
+                
+                for (let i = 1; i < lines.length; i++) {
+                    const values = parseCSVLine(lines[i]);
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index]?.trim().replace(/"/g, '') || '';
+                    });
+                    
+                    const formattedRow = formatter(row);
+                    if (formattedRow) {
+                        const csvRow = Object.values(formattedRow).map(value => {
+                            if (value === null || value === undefined || value === '') {
+                                return '';
+                            }
+                            // Wrap in quotes if contains comma
+                            if (typeof value === 'string' && value.includes(',')) {
+                                return `"${value}"`;
+                            }
+                            return value;
+                        }).join(',');
+                        formattedLines.push(csvRow);
+                    }
+                }
+                
+                log(`✅ Formatted ${formattedLines.length - 1} valid rows`);
+                return formattedLines;
+                
+            } catch (error) {
+                log(`❌ Error loading ${filename}: ${error.message}`, 'error');
+                return null;
+            }
+        }
+        
+        async function formatCSVs() {
+            try {
+                log('🚀 Starting CSV formatting...', 'success');
+                
+                // Format weight data
+                const weightData = await loadAndFormatCSV('Clean_Weight_Log.csv', (row) => {
+                    const formattedDate = formatDate(row.date);
+                    const weight = parseFloat(row.weight);
+                    
+                    if (!formattedDate || !weight || weight <= 0) {
+                        return null; // Skip invalid rows
+                    }
+                    
+                    return {
+                        date: formattedDate,
+                        weight: weight,
+                        body_fat: parseFloat(row.body_fat) || '',
+                        notes: row.notes || ''
+                    };
+                });
+                
+                if (weightData) {
+                    downloadCSV(weightData, 'supabase_weight_logs.csv');
+                }
+                
+                // Format workout data
+                const workoutData = await loadAndFormatCSV('Clean_Workout_Log.csv', (row) => {
+                    const formattedDate = formatDate(row.date);
+                    
+                    if (!formattedDate || !row.type) {
+                        return null; // Skip invalid rows
+                    }
+                    
+                    return {
+                        date: formattedDate,
+                        type: row.type,
+                        duration: row.duration || '',
+                        distance: parseFloat(row.distance) || '',
+                        hr_zone: parseInt(row['hr zone']) || '',
+                        notes: row.notes || ''
+                    };
+                });
+                
+                if (workoutData) {
+                    downloadCSV(workoutData, 'supabase_workouts.csv');
+                }
+                
+                // Format birthday data
+                const birthdayData = await loadAndFormatCSV('Clean_Birthdays.csv', (row) => {
+                    const formattedDate = formatDate(row.date);
+                    
+                    if (!formattedDate || !row.name) {
+                        return null; // Skip invalid rows
+                    }
+                    
+                    return {
+                        name: row.name,
+                        date: formattedDate,
+                        age: parseInt(row.age) || '',
+                        notes: row.notes || ''
+                    };
+                });
+                
+                if (birthdayData) {
+                    downloadCSV(birthdayData, 'supabase_birthdays.csv');
+                }
+                
+                log('🎉 All CSVs formatted successfully!', 'success');
+                log('📋 Next steps:', 'success');
+                log('1. Download the formatted CSV files above', 'success');
+                log('2. Go to Supabase Table Editor', 'success');
+                log('3. Delete existing data (if any)', 'success');
+                log('4. Upload each CSV file to its corresponding table', 'success');
+                
+            } catch (error) {
+                log(`❌ Formatting failed: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
