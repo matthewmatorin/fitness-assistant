@@ -608,6 +608,33 @@
             loadWeatherData(); // Load weather, tide, and sunset info
         }
 
+        async function loadWeatherData() {
+            try {
+                // Using placeholder data for now - replace with actual API calls when ready
+                document.getElementById('current-temp').textContent = '72°F';
+                document.getElementById('temp-high').textContent = 'H: 78°';
+                document.getElementById('weather-icon').textContent = '☀️';
+                document.getElementById('tide-current').textContent = 'Low Tide';
+                document.getElementById('tide-next').textContent = 'High 3:45 PM';
+                document.getElementById('sunset-time').textContent = '7:52 PM';
+                
+                console.log('Weather data loaded successfully');
+                
+                // TODO: Replace with actual API calls:
+                // OpenWeatherMap API for weather
+                // NOAA Tides API for tide data
+            } catch (error) {
+                console.error('Error loading weather data:', error);
+                // Set fallback values if there's an error
+                document.getElementById('current-temp').textContent = '--°F';
+                document.getElementById('temp-high').textContent = 'H: --°';
+                document.getElementById('weather-icon').textContent = '🌤️';
+                document.getElementById('tide-current').textContent = '--';
+                document.getElementById('tide-next').textContent = '--';
+                document.getElementById('sunset-time').textContent = '--';
+            }
+        }
+
         function setupEventListeners() {
             document.getElementById('log-weight-btn').addEventListener('click', () => openModal('weight-modal'));
             document.getElementById('log-workout-btn').addEventListener('click', () => openModal('workout-modal'));
