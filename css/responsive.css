@@ -1,0 +1,168 @@
+/* Responsive Design */
+@media (max-width: 768px) {
+    .app-container {
+        padding: 10px;
+        padding-bottom: 80px;
+    }
+    
+    .header {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+        padding: 20px 15px;
+    }
+    
+    .header h1 {
+        font-size: 24px;
+    }
+    
+    .header-info {
+        align-items: center;
+        width: 100%;
+    }
+    
+    .weather-info {
+        flex-direction: column;
+        gap: 10px;
+        width: 100%;
+        align-items: center;
+    }
+    
+    .weather-temp {
+        justify-content: center;
+    }
+    
+    .horoscope-info, .sunset-info {
+        font-size: 12px;
+        text-align: center;
+        max-width: 100%;
+        padding: 4px 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 6px;
+        margin: 2px 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+        line-height: 1.3;
+    }
+    
+    .action-buttons {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin: 0 -5px;
+    }
+    
+    .action-btn {
+        padding: 18px 12px;
+        font-size: 14px;
+    }
+    
+    .action-btn i {
+        font-size: 24px;
+    }
+    
+    .action-btn span {
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .card {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+        padding: 24px;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 10px;
+    }
+    
+    .modal-buttons {
+        flex-direction: column;
+    }
+    
+    .checkbox-group {
+        grid-template-columns: 1fr;
+    }
+
+    .insights-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .chat-input {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .chat-input input {
+        font-size: 16px; /* Ensure no zoom on mobile */
+    }
+}
+
+@media (max-width: 480px) {
+    .nav-btn span {
+        display: none;
+    }
+    
+    .nav-btn {
+        padding: 8px 12px;
+    }
+    
+    .header {
+        padding: 15px 12px;
+        gap: 12px;
+    }
+    
+    .header h1 {
+        font-size: 22px;
+    }
+    
+    .weather-info {
+        font-size: 13px;
+        gap: 8px;
+    }
+    
+    .horoscope-info, .sunset-info {
+        font-size: 11px;
+        padding: 6px 10px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        margin: 3px 0;
+        width: 100%;
+        max-width: 280px;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+        line-height: 1.4;
+        hyphens: auto;
+    }
+    
+    .action-buttons {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin: 0 -3px;
+    }
+    
+    .action-btn {
+        padding: 14px 8px;
+        border-radius: 16px;
+    }
+    
+    .action-btn i {
+        font-size: 22px;
+    }
+    
+    .action-btn span {
+        font-size: 13px;
+    }
+
+    .chat-input input {
+        font-size: 16px; /* Critical for preventing zoom */
+        padding: 14px; /* Slightly larger touch target */
+    }
+}
