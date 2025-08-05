@@ -51,6 +51,7 @@ function setupEventListeners() {
         const copySyncBtn = document.getElementById('copy-sync-code-btn');
         const viewHistoryBtn = document.getElementById('view-history-btn');
         const hideHistoryBtn = document.getElementById('hide-history-btn');
+        const generateBtn = document.getElementById('generate-insight-btn');
         
         if (saveBtn) saveBtn.addEventListener('click', saveApiKey);
         if (showSyncBtn) showSyncBtn.addEventListener('click', showSyncCode);
@@ -58,6 +59,7 @@ function setupEventListeners() {
         if (copySyncBtn) copySyncBtn.addEventListener('click', copySyncCode);
         if (viewHistoryBtn) viewHistoryBtn.addEventListener('click', showRecentExchanges);
         if (hideHistoryBtn) hideHistoryBtn.addEventListener('click', hideRecentExchanges);
+        if (generateBtn) generateBtn.addEventListener('click', manualGenerateInsight);
         
         generateDashboardInsight();
     }, 100);
