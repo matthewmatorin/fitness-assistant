@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fitness Assistant</title>
+    
+    <!-- NEW: App Icons - Add these lines -->
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon-180x180.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/apple-touch-icon-152x152.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="icons/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="icons/apple-touch-icon-76x76.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/android-chrome-192x192.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
+    <meta name="apple-mobile-web-app-title" content="Fitness Tracker">
+    <meta name="application-name" content="Fitness Tracker">
+    <!-- END: App Icons -->
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/base.css" rel="stylesheet">
+    <link href="css/components.css" rel="stylesheet">
+    <link href="css/responsive.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Rest of your HTML stays exactly the same -->
+    <div class="app-container">
+        <!-- Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-tab="dashboard">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-btn" data-tab="insights">
+                <i class="fas fa-chart-line"></i>
+                <span>Insights</span>
+            </button>
+            <button class="nav-btn" data-tab="settings">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </button>
+        </nav>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <header class="header">
+                <h1>Matt's Assistant</h1>
+                <div class="header-info">
+                    <div class="date">
+                        <i class="fas fa-calendar"></i>
+                        <span id="current-date"></span>
+                    </div>
+                    <div class="weather-info">
+                        <div class="weather-temp">
+                            <span id="weather-icon">☀️</span>
+                            <span id="current-temp">--°F</span>
+                            <span id="temp-high">H: --°</span>
+                        </div>
+                        <div class="horoscope-info">
+                            ♎ <span id="horoscope-text">Loading horoscope...</span>
+                        </div>
+                        <div class="sunset-info">
+                            🌅 <span id="sunset-time">--</span>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Quick Actions -->
+            <section class="quick-actions">
+                <h2>Quick Actions</h2>
+                <div class="action-buttons">
+                    <button class="action-btn" id="log-weight-btn">
+                        <i class="fas fa-weight"></i>
+                        <span>Log Weight</span>
+                    </button>
+                    <button class="action-btn" id="log-workout-btn">
+                        <i class="fas fa-dumbbell"></i>
+                        <span>Log Workout</span>
+                    </button>
+                    <button class="action-btn" id="log-birthday-btn">
+                        <i class="fas fa-birthday-cake"></i>
+                        <span>Add Birthday</span>
+                    </button>
+                </div>
+            </section>
+
+            <!-- AI Daily Insight Section -->
+            <section class="daily-insight-section">
+                <div class="insight-card">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+                        <div style="background: linear-gradient(135deg, #667eea, #764ba2); color: white; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                            <i class="fas fa-lightbulb"></i>
+                        </div>
+                        <h3 style="color: white; margin: 0; font-size: 18px; font-weight: 600;">Daily Insight</h3>
+                    </div>
+                    <div id="daily-insight-content" style="color: rgba(255,255,255,0.9); line-height: 1.5; font-size: 14px;">
+                        <p id="daily-insight-text">Configure your AI key in Settings to get personalized daily insights...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Summary Cards -->
+            <section class="summary-cards">
+                <div class="card" id="weight-card">
+                    <div class="card-icon">
+                        <i class="fas fa-weight"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Current Weight</h3>
+                        <div class="card-stats">
+                            <span class="main-stat" id="current-weight">--</span>
+                            <div class="sub-stats">
+                                <span>Lost: <span id="weight-lost">0</span> lbs</span>
+                                <span class="trend" id="weight-trend">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="workout-card">
+                    <div class="card-icon">
+                        <i class="fas fa-dumbbell"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Workouts This Week</h3>
+                        <div class="card-stats">
+                            <span class="main-stat" id="workouts-this-week">0</span>
+                            <div class="sub-stats">
+                                <span>Avg: <span id="workouts-avg">0</span>/week</span>
+                                <span class="trend" id="workout-trend">--</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="birthday-card">
+                    <div class="card-icon">
+                        <i class="fas fa-birthday-cake"></i>
+                    </div>
+                    <div class="card-content">
+                        <h3>Birthdays This Week</h3>
+                        <div class="card-stats">
+                            <span class="main-stat" id="birthdays-this-week">0</span>
+                            <div class="sub-stats">
+                                <span>This month: <span id="birthdays-this-month">0</span></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Insights Tab -->
+        <div id="insights" class="tab-content">
+            <header class="header">
+                <h1>Insights</h1>
+            </header>
+            
+            <section class="insights-section">
+                <!-- Q&A Section -->
+                <div class="chat-section">
+                    <h3>Ask About Your Data</h3>
+                    <p style="margin-bottom: 20px; opacity: 0.9;">Ask questions about your fitness progress and get personalized insights.</p>
+                    
+                    <div class="chat-input">
+                        <input type="text" placeholder="e.g., How has my weight changed this month?" id="chat-question">
+                        <button class="btn-primary" id="ask-question-btn">
+                            <i class="fas fa-paper-plane"></i>
+                            Ask
+                        </button>
+                    </div>
+                    
+                    <!-- Current Response -->
+                    <div id="current-response" style="margin-top: 20px; margin-bottom: 30px; display: none;">
+                        <div style="background: rgba(255,255,255,0.1); border-radius: 12px; padding: 20px; border-left: 4px solid #667eea;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                                <h4 style="color: white; margin: 0; font-size: 16px;">Latest Question:</h4>
+                                <button id="view-history-btn" class="btn-secondary" style="font-size: 12px; padding: 6px 12px;">
+                                    <i class="fas fa-history"></i> View Recent
+                                </button>
+                            </div>
+                            <p id="current-question" style="color: rgba(255,255,255,0.8); margin-bottom: 15px; font-style: italic;"></p>
+                            <div id="current-answer" style="color: white; line-height: 1.5; white-space: pre-wrap;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Exchanges -->
+                    <div id="recent-exchanges" style="display: none; margin-bottom: 30px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h4 style="color: white; margin: 0;">Recent Exchanges</h4>
+                            <button id="hide-history-btn" class="btn-secondary" style="font-size: 12px; padding: 6px 12px;">
+                                <i class="fas fa-times"></i> Hide
+                            </button>
+                        </div>
+                        <div id="exchanges-list" style="max-height: 300px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+
+                <!-- Fitness Stats Cards -->
+                <div class="insights-cards">
+                    <div class="insight-card">
+                        <h3>Weight Progress</h3>
+                        <div class="insight-stat" id="weight-progress">--</div>
+                        <div class="insight-description" id="weight-description">Loading...</div>
+                    </div>
+                    
+                    <div class="insight-card">
+                        <h3>Walking Activity</h3>
+                        <div class="insight-stat" id="walking-time">--</div>
+                        <div class="insight-description" id="walking-description">Loading...</div>
+                    </div>
+                    
+                    <div class="insight-card">
+                        <h3>Running Distance</h3>
+                        <div class="insight-stat" id="running-distance">--</div>
+                        <div class="insight-description" id="running-description">Loading...</div>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <div>
+                            <h3>Weight Trend</h3>
+                            <p id="weight-period-change" style="font-size: 18px; margin-top: 8px; font-weight: 600;"></p>
+                        </div>
+                        <select id="insights-chart-filter" style="padding: 8px 12px; border-radius: 6px;">
+                            <option value="7">Last 7 days</option>
+                            <option value="14">Last 14 days</option>
+                            <option value="30" selected>Last 30 days</option>
+                            <option value="60">Last 60 days</option>
+                            <option value="90">Last 90 days</option>
+                            <option value="all">All time</option>
+                        </select>
+                    </div>
+                    <canvas id="insights-weight-chart" width="400" height="200"></canvas>
+                </div>
+            </section>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings" class="tab-content">
+            <header class="header">
+                <h1>Settings</h1>
+            </header>
+            
+            <section class="settings-section">
+                <div class="setting-group">
+                    <h3>AI Chat Configuration</h3>
+                    <div style="margin-bottom: 15px;">
+                        <label for="openai-api-key" style="display: block; margin-bottom: 8px; color: white;">OpenAI API Key:</label>
+                        <input type="password" id="openai-api-key" placeholder="Enter your OpenAI API key" style="width: 100%; max-width: 400px; padding: 8px 12px; border-radius: 6px; border: 2px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: white;">
+                        <button id="save-api-key-btn" class="btn-primary" style="margin-left: 10px; margin-top: 5px;">
+                            <i class="fas fa-save"></i> Save Key
+                        </button>
+                    </div>
+                    <div id="api-key-status" style="margin-top: 10px;">
+                        <p style="color: #f59e0b;">⚠️ No API key configured</p>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <button id="show-sync-code-btn" class="btn-secondary" style="margin-right: 10px;">
+                            <i class="fas fa-qrcode"></i> Show Sync Code
+                        </button>
+                        <button id="use-sync-code-btn" class="btn-secondary">
+                            <i class="fas fa-download"></i> Use Sync Code
+                        </button>
+                    </div>
+                    <div id="sync-code-display" style="display: none; margin-top: 15px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <p style="color: white; margin-bottom: 10px; font-size: 14px;">Copy this code to sync your API key to another device:</p>
+                        <textarea id="sync-code-text" readonly style="width: 100%; height: 60px; padding: 8px; border-radius: 4px; font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.3); color: white; border: 1px solid rgba(255,255,255,0.2);"></textarea>
+                        <button id="copy-sync-code-btn" class="btn-primary" style="margin-top: 8px;">
+                            <i class="fas fa-copy"></i> Copy Code
+                        </button>
+                    </div>
+                    <p style="font-size: 12px; opacity: 0.8; margin-top: 10px;">
+                        Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank" style="color: #667eea;">OpenAI Platform</a>. 
+                        Your key is stored locally and never shared.
+                    </p>
+                </div>
+                
+                <div class="setting-group">
+                    <h3>Database Connection</h3>
+                    <div id="connection-status">
+                        <p>Checking connection...</p>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <h3>Data Status</h3>
+                    <div id="data-status">
+                        <p>Loading data...</p>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <h3>Export Data</h3>
+                    <div class="export-controls">
+                        <select id="export-type">
+                            <option value="">Select data type</option>
+                            <option value="workouts">Workouts</option>
+                            <option value="weight_logs">Weight Logs</option>
+                            <option value="birthdays">Birthdays</option>
+                        </select>
+                        <select id="export-format">
+                            <option value="csv">CSV</option>
+                            <option value="excel">Excel</option>
+                        </select>
+                        <button id="export-btn" class="btn-primary">
+                            <i class="fas fa-download"></i>
+                            Export
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <h3>Data Management</h3>
+                    <div class="data-actions">
+                        <button id="refresh-data-btn" class="btn-primary">
+                            <i class="fas fa-refresh"></i> Refresh Data
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- All the modals -->
+    <div id="weight-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Log Weight</h3>
+                <button class="close-btn" onclick="closeModal('weight-modal')">&times;</button>
+            </div>
+            <form id="weight-form" class="modal-form">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="weight-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Weight (lbs)</label>
+                    <input type="number" id="weight-value" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Body Fat % (optional)</label>
+                    <input type="number" id="body-fat" step="0.1" min="0" max="50">
+                </div>
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="weight-notes" rows="2"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Submit</button>
+                    <button type="button" class="btn-secondary" onclick="closeModal('weight-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="workout-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Log Workout</h3>
+                <button class="close-btn" onclick="closeModal('workout-modal')">&times;</button>
+            </div>
+            <form id="workout-form" class="modal-form">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="workout-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Workout Type</label>
+                    <select id="workout-type" required>
+                        <option value="">Select type</option>
+                        <option value="walk">Walk</option>
+                        <option value="lift">Lift</option>
+                        <option value="run">Run</option>
+                        <option value="tennis">Tennis</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group conditional" id="duration-group">
+                    <label>Duration (minutes)</label>
+                    <input type="number" id="workout-duration" min="1">
+                </div>
+                <div class="form-group conditional" id="distance-group">
+                    <label>Distance (miles)</label>
+                    <input type="number" id="workout-distance" step="0.1" min="0.1">
+                </div>
+                <div class="form-group conditional" id="hr-group">
+                    <label>Heart Rate Zone</label>
+                    <select id="workout-hr">
+                        <option value="">Select zone</option>
+                        <option value="1">Zone 1 (50-60%)</option>
+                        <option value="2">Zone 2 (60-70%)</option>
+                        <option value="3">Zone 3 (70-80%)</option>
+                        <option value="4">Zone 4 (80-90%)</option>
+                        <option value="5">Zone 5 (90-100%)</option>
+                    </select>
+                </div>
+                <div class="form-group conditional" id="muscle-group">
+                    <label>Muscle Groups</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" value="chest"> Chest</label>
+                        <label><input type="checkbox" value="biceps"> Biceps</label>
+                        <label><input type="checkbox" value="core"> Core</label>
+                        <label><input type="checkbox" value="pushups"> Pushups</label>
+                        <label><input type="checkbox" value="shoulders"> Shoulders</label>
+                        <label><input type="checkbox" value="back"> Back</label>
+                        <label><input type="checkbox" value="legs"> Legs</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="workout-notes" rows="2"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Submit</button>
+                    <button type="button" class="btn-secondary" onclick="closeModal('workout-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="birthday-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Birthday</h3>
+                <button class="close-btn" onclick="closeModal('birthday-modal')">&times;</button>
+            </div>
+            <form id="birthday-form" class="modal-form">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="birthday-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="birthday-date" required>
+                </div>
+                <div class="form-group">
+                    <label>Age (optional)</label>
+                    <input type="number" id="birthday-age" min="0" max="150">
+                </div>
+                <div class="form-group">
+                    <label>Notes (optional)</label>
+                    <textarea id="birthday-notes" rows="3"></textarea>
+                </div>
+                <div class="modal-buttons">
+                    <button type="submit" class="btn-primary">Submit</button>
+                    <button type="button" class="btn-secondary" onclick="closeModal('birthday-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Detail Modals -->
+    <div id="workout-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Recent Workouts</h3>
+                <button class="close-btn" onclick="closeModal('workout-detail-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="workout-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="weight-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Weight Statistics</h3>
+                <button class="close-btn" onclick="closeModal('weight-detail-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="weight-stats-content">
+                    <div class="stat-group">
+                        <h4>Weekly Averages</h4>
+                        <div class="stat-row">
+                            <span>This Week:</span>
+                            <span id="weight-this-week">--</span>
+                        </div>
+                        <div class="stat-row">
+                            <span>Last Week:</span>
+                            <span id="weight-last-week">--</span>
+                        </div>
+                        <div class="stat-row trend-row">
+                            <span>Change:</span>
+                            <span id="weight-weekly-change" class="trend">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-group">
+                        <h4>Monthly Average</h4>
+                        <div class="stat-row">
+                            <span>Last 30 Days:</span>
+                            <span id="weight-monthly-avg">--</span>
+                        </div>
+                    </div>
+
+                    <div class="stat-group">
+                        <h4>Recent Entries</h4>
+                        <div id="weight-entries-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="birthday-detail-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Birthdays by Month</h3>
+                <button class="close-btn" onclick="closeModal('birthday-detail-modal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <select id="birthday-month-filter" style="padding: 8px 12px; border-radius: 6px; width: 200px;">
+                        <option value="0">January</option>
+                        <option value="1">February</option>
+                        <option value="2">March</option>
+                        <option value="3">April</option>
+                        <option value="4">May</option>
+                        <option value="5">June</option>
+                        <option value="6">July</option>
+                        <option value="7">August</option>
+                        <option value="8">September</option>
+                        <option value="9">October</option>
+                        <option value="10">November</option>
+                        <option value="11">December</option>
+                    </select>
+                </div>
+                <div id="birthday-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading" class="loading-overlay">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Scripts - CRITICAL: Load in correct order with ALL services -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="js/supabase.js"></script>
+    <script src="js/services/weather.js"></script>
+    <script src="js/services/export.js"></script>
+    <script src="js/components/dashboard-data.js"></script>
+    <script src="js/components/insights-data.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
