@@ -117,9 +117,6 @@ async function getTrainsToNYC() {
             }
         } else {
             console.log('Skipping Transit.land API - shouldUseAPI() returned false');
-            console.log('API Key present:', !!TRANSIT_LAND_API_KEY);
-            console.log('API blocked:', apiUsageBlocked);
-            console.log('Remaining calls:', getRemainingAPICalls());
         }
         
         // Try MTA's public GTFS data (no auth required)
@@ -152,9 +149,6 @@ async function getTrainsFromNYC() {
             }
         } else {
             console.log('Skipping Transit.land API - shouldUseAPI() returned false');
-            console.log('API Key present:', !!TRANSIT_LAND_API_KEY);
-            console.log('API blocked:', apiUsageBlocked);
-            console.log('Remaining calls:', getRemainingAPICalls());
         }
         
         // Try MTA's public GTFS data (no auth required)
@@ -175,7 +169,7 @@ async function getTrainsFromNYC() {
     }
 }
 
-// Try Transit.land API with authentication
+// Try Transit.land API with authentication using schedule_stop_pairs endpoint
 async function tryTransitlandAPI(direction) {
     try {
         const now = new Date();
@@ -195,6 +189,8 @@ async function tryTransitlandAPI(direction) {
         });
         
         console.log(`Trying Transit.land schedule_stop_pairs API for ${direction}...`);
+        console.log(`API URL: ${apiUrl.replace(TRANSIT_LAND_API_KEY, 'HIDDEN_KEY')}`);
+        
         const response = await fetch(apiUrl);
         
         // Increment usage counter for actual API calls
@@ -211,6 +207,7 @@ async function tryTransitlandAPI(direction) {
         }
         
         const data = await response.json();
+        console.log(`API Response for ${direction}:`, data);
         
         if (data.schedule_stop_pairs && data.schedule_stop_pairs.length > 0) {
             console.log(`Transit.land API success for ${direction}! Found ${data.schedule_stop_pairs.length} schedule pairs`);
@@ -227,6 +224,40 @@ async function tryTransitlandAPI(direction) {
         }
         return [];
     }
+}
+
+// Parse Transit.land schedule_stop_pairs API response into our format
+function parseTransitLandSchedulePairs(schedulePairs, direction) {
+    const now = new Date();
+    
+    // Filter and sort pairs by departure time
+    const upcomingPairs = schedulePairs
+        .filter(pair => {
+            const departure = new Date(`${pair.service_date}T${pair.origin_departure_time}`);
+            return departure > now;
+        })
+        .sort((a, b) => {
+            const departureA = new Date(`${a.service_date}T${a.origin_departure_time}`);
+            const departureB = new Date(`${b.service_date}T${b.origin_departure_time}`);
+            return departureA - departureB;
+        })
+        .slice(0, 3); // Get next 3 trains
+    
+    return upcomingPairs.map(pair => {
+        const departure = new Date(`${pair.service_date}T${pair.origin_departure_time}`);
+        const arrival = new Date(`${pair.service_date}T${pair.destination_arrival_time}`);
+        const duration = Math.round((arrival - departure) / (1000 * 60)); // minutes
+        
+        return {
+            departure: departure,
+            arrival: arrival,
+            duration: duration,
+            status: { text: 'Live', isDelayed: false }, // Real API data
+            track: direction === 'fromNYC' ? getRandomTrack() : null,
+            tripId: pair.trip,
+            isScheduleBased: false // This is real API data
+        };
+    });
 }
 
 // Try MTA's public APIs (no authentication required)
@@ -337,59 +368,6 @@ function generateRealisticScheduleFromTimetable(direction) {
         });
     
     return upcomingTrains;
-}
-
-// Parse Transit.land schedule_stop_pairs API response into our format
-function parseTransitLandSchedulePairs(schedulePairs, direction) {
-    const now = new Date();
-    
-    // Filter and sort pairs by departure time
-    const upcomingPairs = schedulePairs
-        .filter(pair => {
-            const departure = new Date(`${pair.service_date}T${pair.origin_departure_time}`);
-            return departure > now;
-        })
-        .sort((a, b) => {
-            const departureA = new Date(`${a.service_date}T${a.origin_departure_time}`);
-            const departureB = new Date(`${b.service_date}T${b.origin_departure_time}`);
-            return departureA - departureB;
-        })
-        .slice(0, 3); // Get next 3 trains
-    
-    return upcomingPairs.map(pair => {
-        const departure = new Date(`${pair.service_date}T${pair.origin_departure_time}`);
-        const arrival = new Date(`${pair.service_date}T${pair.destination_arrival_time}`);
-        const duration = Math.round((arrival - departure) / (1000 * 60)); // minutes
-        
-        return {
-            departure: departure,
-            arrival: arrival,
-            duration: duration,
-            status: { text: 'Live', isDelayed: false }, // Real API data
-            track: direction === 'fromNYC' ? getRandomTrack() : null,
-            tripId: pair.trip,
-            isScheduleBased: false // This is real API data
-        };
-    });
-}
-
-// Parse Transit.land trips API response into our format (backup method)
-function parseTransitLandTrips(trips, direction) {
-    return trips.slice(0, 3).map(trip => {
-        const departure = new Date(trip.departure_time);
-        const arrival = new Date(trip.arrival_time);
-        const duration = Math.round((arrival - departure) / (1000 * 60)); // minutes
-        
-        return {
-            departure: departure,
-            arrival: arrival,
-            duration: duration,
-            status: { text: 'Live', isDelayed: false }, // Real API data
-            track: direction === 'fromNYC' ? getRandomTrack() : null,
-            tripId: trip.id,
-            isScheduleBased: false // This is real API data
-        };
-    });
 }
 
 // Get random realistic track number for Grand Central
