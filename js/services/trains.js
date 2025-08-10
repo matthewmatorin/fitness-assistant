@@ -6,10 +6,60 @@ const TRANSIT_LAND_API_BASE = 'https://transit.land/api/v2/rest';
 const COS_COB_STOP_ID = 'f-dr5rs-coscob';  // Cos Cob station
 const GRAND_CENTRAL_STOP_ID = 'f-dr5r-grandcentralterminal';  // Grand Central
 
+// Add your Transit.land API key here (get from https://www.transit.land/)
+// Leave empty to use fallback schedule data
+const TRANSIT_LAND_API_KEY = 'ltJ7MB6EUQ4blz50RBcKz0UPbw9dPHPm';
+
+// API Usage Tracking
+const API_USAGE_KEY = 'transitland_api_usage';
+const MONTHLY_LIMIT = 1000;
+
 // Status tracking
 let lastSuccessfulUpdate = null;
 let currentStatus = 'loading'; // loading, connected, error, stale
 let refreshInterval = null;
+let apiUsageBlocked = false;
+
+// API Usage Tracking Functions
+function getAPIUsage() {
+    const usage = localStorage.getItem(API_USAGE_KEY);
+    if (!usage) {
+        return { count: 0, month: new Date().getMonth(), year: new Date().getFullYear() };
+    }
+    return JSON.parse(usage);
+}
+
+function incrementAPIUsage() {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    let usage = getAPIUsage();
+    
+    // Reset counter if it's a new month
+    if (usage.month !== currentMonth || usage.year !== currentYear) {
+        usage = { count: 0, month: currentMonth, year: currentYear };
+        apiUsageBlocked = false; // Reset block status for new month
+    }
+    
+    usage.count++;
+    localStorage.setItem(API_USAGE_KEY, JSON.stringify(usage));
+    
+    // Check if we've hit the limit
+    if (usage.count >= MONTHLY_LIMIT) {
+        apiUsageBlocked = true;
+        console.log(`API limit reached: ${usage.count}/${MONTHLY_LIMIT} calls this month`);
+    }
+    
+    return usage;
+}
+
+function getRemainingAPICalls() {
+    const usage = getAPIUsage();
+    return Math.max(0, MONTHLY_LIMIT - usage.count);
+}
+
+function shouldUseAPI() {
+    return TRANSIT_LAND_API_KEY && !apiUsageBlocked && getRemainingAPICalls() > 0;
+}
 
 // Main function to load today's train schedules
 async function loadTrainSchedules() {
@@ -45,20 +95,23 @@ async function loadTrainSchedules() {
 // Get next 3 trains from Cos Cob to Grand Central using multiple API sources
 async function getTrainsToNYC() {
     try {
-        // Try MTA's public GTFS data first (no auth required)
+        // Try Transit.land API first if we have an API key and haven't hit limits
+        if (shouldUseAPI()) {
+            const transitlandResult = await tryTransitlandAPI('toNYC');
+            if (transitlandResult.length > 0) {
+                return transitlandResult;
+            }
+        }
+        
+        // Try MTA's public GTFS data (no auth required)
         const mtaResult = await tryMTAScheduleAPI('toNYC');
         if (mtaResult.length > 0) {
             return mtaResult;
         }
         
-        // If MTA fails, try other public transit APIs
-        const alternativeResult = await tryAlternativeAPIs('toNYC');
-        if (alternativeResult.length > 0) {
-            return alternativeResult;
-        }
-        
         // If all APIs fail, show realistic schedule based on current time
-        console.log('All APIs failed, showing schedule-based times');
+        const reason = apiUsageBlocked ? 'Monthly API limit reached' : 'APIs failed or no API key provided';
+        console.log(`${reason}, showing schedule-based times`);
         return generateRealisticScheduleFromTimetable('toNYC');
         
     } catch (error) {
@@ -71,26 +124,84 @@ async function getTrainsToNYC() {
 // Get next 3 trains from Grand Central to Cos Cob using multiple API sources
 async function getTrainsFromNYC() {
     try {
-        // Try MTA's public GTFS data first (no auth required)
+        // Try Transit.land API first if we have an API key and haven't hit limits
+        if (shouldUseAPI()) {
+            const transitlandResult = await tryTransitlandAPI('fromNYC');
+            if (transitlandResult.length > 0) {
+                return transitlandResult;
+            }
+        }
+        
+        // Try MTA's public GTFS data (no auth required)
         const mtaResult = await tryMTAScheduleAPI('fromNYC');
         if (mtaResult.length > 0) {
             return mtaResult;
         }
         
-        // If MTA fails, try other public transit APIs
-        const alternativeResult = await tryAlternativeAPIs('fromNYC');
-        if (alternativeResult.length > 0) {
-            return alternativeResult;
-        }
-        
         // If all APIs fail, show realistic schedule based on current time
-        console.log('All APIs failed, showing schedule-based times');
+        const reason = apiUsageBlocked ? 'Monthly API limit reached' : 'APIs failed or no API key provided';
+        console.log(`${reason}, showing schedule-based times`);
         return generateRealisticScheduleFromTimetable('fromNYC');
         
     } catch (error) {
         console.error('API call failed for NYC to Cos Cob:', error);
         // Return realistic schedule as last resort
         return generateRealisticScheduleFromTimetable('fromNYC');
+    }
+}
+
+// Try Transit.land API with authentication
+async function tryTransitlandAPI(direction) {
+    try {
+        const now = new Date().toISOString();
+        const endTime = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString(); // Next 4 hours
+        
+        const originId = direction === 'toNYC' ? COS_COB_STOP_ID : GRAND_CENTRAL_STOP_ID;
+        const destinationId = direction === 'toNYC' ? GRAND_CENTRAL_STOP_ID : COS_COB_STOP_ID;
+        
+        // Build the API URL with authentication
+        const apiUrl = `${TRANSIT_LAND_API_BASE}/trips?` + new URLSearchParams({
+            origin_onestop_id: originId,
+            destination_onestop_id: destinationId,
+            departure_time_after: now,
+            departure_time_before: endTime,
+            limit: 3,
+            include_geometry: false,
+            apikey: TRANSIT_LAND_API_KEY
+        });
+        
+        console.log(`Trying Transit.land API for ${direction}...`);
+        const response = await fetch(apiUrl);
+        
+        // Increment usage counter for actual API calls
+        const usage = incrementAPIUsage();
+        console.log(`API call ${usage.count}/${MONTHLY_LIMIT} this month`);
+        
+        if (!response.ok) {
+            if (response.status === 429) {
+                // Rate limit hit
+                apiUsageBlocked = true;
+                throw new Error(`Rate limit exceeded: ${response.status}`);
+            }
+            throw new Error(`Transit.land API response not ok: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.trips && data.trips.length > 0) {
+            console.log(`Transit.land API success for ${direction}!`);
+            return parseTransitLandTrips(data.trips, direction);
+        } else {
+            console.log(`No trips found in Transit.land for ${direction}`);
+            return [];
+        }
+        
+    } catch (error) {
+        console.log(`Transit.land API failed for ${direction}:`, error.message);
+        if (error.message.includes('Rate limit') || error.message.includes('429')) {
+            apiUsageBlocked = true;
+        }
+        return [];
     }
 }
 
@@ -113,21 +224,6 @@ async function tryMTAScheduleAPI(direction) {
         
     } catch (error) {
         console.log('MTA API failed:', error.message);
-        return [];
-    }
-}
-
-// Try alternative public transit APIs
-async function tryAlternativeAPIs(direction) {
-    try {
-        // Try OpenTripPlanner or other public APIs
-        // Most will have CORS issues from browser, but worth attempting
-        
-        console.log('Alternative APIs not yet implemented');
-        return [];
-        
-    } catch (error) {
-        console.log('Alternative APIs failed:', error.message);
         return [];
     }
 }
@@ -232,7 +328,8 @@ function parseTransitLandTrips(trips, direction) {
             duration: duration,
             status: { text: 'Live', isDelayed: false }, // Real API data
             track: direction === 'fromNYC' ? getRandomTrack() : null,
-            tripId: trip.id
+            tripId: trip.id,
+            isScheduleBased: false // This is real API data
         };
     });
 }
@@ -329,15 +426,25 @@ function updateTrainCard(toNYC, fromNYC) {
     // Determine data freshness and status
     const now = new Date();
     const dataAge = lastSuccessfulUpdate ? Math.floor((now - lastSuccessfulUpdate) / 1000) : 0;
+    const usage = getAPIUsage();
+    const remainingCalls = getRemainingAPICalls();
     
     let statusClass, statusIcon, statusText, dataAgeText;
     
-    if (isScheduleBased) {
-        // Using schedule data (API failed)
+    if (apiUsageBlocked || remainingCalls === 0) {
+        // API limit reached
+        statusClass = 'status-limit';
+        statusIcon = '🔴';
+        statusText = 'Monthly API limit reached';
+        dataAgeText = `${usage.count}/${MONTHLY_LIMIT} calls used`;
+    } else if (isScheduleBased) {
+        // Using schedule data (API failed or no key)
         statusClass = 'status-stale';
         statusIcon = '🟡';
         statusText = 'Schedule data';
-        dataAgeText = 'Live data unavailable';
+        dataAgeText = TRANSIT_LAND_API_KEY ? 
+            `${remainingCalls} API calls remaining` : 
+            'No API key provided';
     } else {
         // Using real API data
         statusClass = 'status-connected';
@@ -345,10 +452,10 @@ function updateTrainCard(toNYC, fromNYC) {
         statusText = 'Live data';
         
         if (dataAge < 60) {
-            dataAgeText = `Updated ${dataAge}s ago`;
+            dataAgeText = `Updated ${dataAge}s ago • ${remainingCalls} calls left`;
         } else {
             const minutes = Math.floor(dataAge / 60);
-            dataAgeText = `Updated ${minutes}m ago`;
+            dataAgeText = `Updated ${minutes}m ago • ${remainingCalls} calls left`;
             
             if (minutes > 5) {
                 statusClass = 'status-stale';
@@ -381,7 +488,8 @@ function updateTrainCard(toNYC, fromNYC) {
                     ${fromNYCHTML}
                 </div>
             </div>
-            ${isScheduleBased || dataAge > 300 ? '<div class="update-time"><button class="retry-btn" onclick="retryTrainConnection()" style="font-size: 10px; padding: 4px 8px;">Try Live Data</button></div>' : ''}
+            ${(isScheduleBased && !apiUsageBlocked) || dataAge > 300 ? '<div class="update-time"><button class="retry-btn" onclick="retryTrainConnection()" style="font-size: 10px; padding: 4px 8px;">Try Live Data</button></div>' : ''}
+            ${apiUsageBlocked ? '<div class="api-limit-notice" style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 8px; margin-top: 10px; font-size: 11px; color: #856404;"><strong>Monthly API limit reached</strong><br>Using schedule data until next month. Schedule data is still accurate for planning!</div>' : ''}
         </div>
     `;
 }
@@ -455,10 +563,34 @@ function stopTrainDataRefresh() {
 function initializeTrainService() {
     console.log('Initializing Metro-North train service...');
     
+    // Check current API usage on startup
+    const usage = getAPIUsage();
+    console.log(`Current API usage: ${usage.count}/${MONTHLY_LIMIT} calls this month`);
+    
     // Wait a moment for DOM to be ready
     setTimeout(() => {
         startTrainDataRefresh();
     }, 1000);
+}
+
+// Function to reset API counter (for testing or new month)
+function resetAPICounter() {
+    localStorage.removeItem(API_USAGE_KEY);
+    apiUsageBlocked = false;
+    console.log('API counter reset');
+}
+
+// Function to get API usage stats (for debugging)
+function getAPIStats() {
+    const usage = getAPIUsage();
+    return {
+        callsUsed: usage.count,
+        totalLimit: MONTHLY_LIMIT,
+        remaining: getRemainingAPICalls(),
+        month: usage.month + 1, // +1 because months are 0-indexed
+        year: usage.year,
+        blocked: apiUsageBlocked
+    };
 }
 
 // Export functions for use in main app
@@ -466,6 +598,8 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         loadTrainSchedules,
         initializeTrainService,
-        retryTrainConnection
+        retryTrainConnection,
+        getAPIStats,
+        resetAPICounter
     };
 }
